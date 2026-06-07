@@ -7,6 +7,7 @@ DATA_RAW_DIR = PROJECT_ROOT / "data" / "raw"
 DATA_PROCESSED_DIR = PROJECT_ROOT / "data" / "processed"
 MODELS_DIR = PROJECT_ROOT / "models"
 NOTEBOOKS_DIR = PROJECT_ROOT / "notebooks"
+REPORTS_DIR = PROJECT_ROOT / "reports"
 
 RANDOM_STATE = 42
 TEST_SIZE = 0.2
