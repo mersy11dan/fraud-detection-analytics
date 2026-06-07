@@ -15,3 +15,4 @@ VALIDATION_SIZE = 0.2
 CREDITCARD_FILENAME = "creditcard.csv"
 FRAUD_DATA_FILENAME = "Fraud_Data.csv"
 IP_COUNTRY_FILENAME = "IpAddress_to_Country.csv"
+FRAUD_DATA_GEOLOCATED_FILENAME = "fraud_data_geolocated.csv"
