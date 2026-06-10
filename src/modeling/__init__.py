@@ -17,6 +17,13 @@ from src.modeling.metrics import (
     compute_classification_metrics,
     confusion_matrix_frame,
 )
+from src.modeling.interpretation import (
+    describe_feature,
+    extract_feature_importance,
+    get_coefficient_extremes,
+    plot_top_features,
+    save_top_features,
+)
 from src.modeling.training import (
     ModelTrainingResult,
     compare_model_results,
@@ -27,6 +34,9 @@ from src.modeling.training import (
 )
 
 __all__ = [
+    "describe_feature",
+    "extract_feature_importance",
+    "get_coefficient_extremes",
     "ClassificationMetrics",
     "ImbalanceHandlingResult",
     "ModelTrainingResult",
@@ -37,6 +47,8 @@ __all__ = [
     "confusion_matrix_frame",
     "get_default_estimators",
     "load_fraud_feature_matrix",
+    "plot_top_features",
+    "save_top_features",
     "prepare_fraud_modeling_data",
     "prepare_resampled_training_data",
     "save_imbalance_report",
