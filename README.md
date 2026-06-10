@@ -1,14 +1,18 @@
 # Fraud Detection Analytics
 
-Week 5-6 interim submission: end-to-end fraud detection analytics with preprocessing, EDA, class imbalance handling, and model interpretability.
+Week 5–6 interim submission for fraud detection analytics: preprocessing, EDA, geolocation enrichment, feature engineering, and class imbalance handling.
 
 ## Overview
 
-<!-- Brief project summary: datasets, business problem, and modeling goals -->
+This project builds a reproducible pipeline for detecting fraudulent transactions using two datasets:
 
-This project analyzes transaction fraud using machine learning. The interim deliverable covers data ingestion, exploratory analysis, preprocessing pipelines, and baseline modeling for highly imbalanced fraud labels.
+- **Fraud_Data.csv** — e-commerce transactions with user, channel, and behavioral features (~9.4% fraud)
+- **creditcard.csv** — PCA-transformed credit card transactions (~0.17% fraud)
+- **IpAddress_to_Country.csv** — IPv4 range-to-country mapping for geolocation enrichment
 
-## Setup
+Task 1 delivers data understanding, cleaning, EDA, geolocation enrichment, feature engineering, and SMOTE-based imbalance handling. Model training and SHAP interpretability are planned for the next phase.
+
+## Quick Start
 
 ### Prerequisites
 
@@ -19,86 +23,164 @@ This project analyzes transaction fraud using machine learning. The interim deli
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate        # Windows: .venv\Scripts\activate
+# Windows
+.venv\Scripts\activate
+# macOS / Linux
+source .venv/bin/activate
+
 pip install -r requirements.txt
 ```
 
-### Running tests
+### Run tests
 
 ```bash
 pytest tests/ -v
 ```
 
+CI runs the same test suite on push/PR via GitHub Actions (`.github/workflows/ci.yml`).
+
 ## Data
 
-<!-- Describe datasets: creditcard.csv, Fraud_Data.csv, IpAddress_to_Country.csv -->
+Place raw CSV files in `data/raw/` before running pipelines. Raw and processed data are gitignored.
 
-| Dataset | Location | Description |
-|---------|----------|-------------|
-| Credit card transactions | `data/raw/creditcard.csv` | PCA-transformed features with `Class` fraud label |
-| E-commerce fraud | `data/raw/Fraud_Data.csv` | User/session transaction features |
-| IP geolocation | `data/raw/IpAddress_to_Country.csv` | IP-to-country mapping for enrichment |
+| Dataset | File | Rows (approx.) | Fraud rate |
+|---------|------|----------------|------------|
+| E-commerce fraud | `Fraud_Data.csv` | 151,112 | 9.36% |
+| Credit card | `creditcard.csv` | 284,807 | 0.17% |
+| IP geolocation | `IpAddress_to_Country.csv` | 138,846 | — |
 
-Raw data is excluded from version control. Place files in `data/raw/` before running notebooks or scripts.
+## Pipelines
 
-## Preprocessing
+Run scripts from the project root:
 
-<!-- Document cleaning, feature engineering, train/test splits, and pipeline modules -->
+```bash
+# Clean and save processed datasets
+python scripts/run_preprocess.py
 
-Preprocessing logic lives in `src/preprocessing/`. Processed outputs are written to `data/processed/`.
+# Enrich Fraud_Data with country labels
+python scripts/run_geolocation_enrichment.py
 
-Planned steps:
+# Engineer and encode features
+python scripts/run_feature_engineering.py
 
-- Missing value handling and type coercion
-- Feature scaling and encoding
-- Temporal and geolocation enrichment
-- Reproducible train/validation/test splits
+# Apply SMOTE on training split and write imbalance report
+python scripts/run_imbalance_resampling.py
+```
 
-## EDA
+### Processed outputs (`data/processed/`)
 
-<!-- Summarize key exploratory findings: class distribution, amount patterns, time trends -->
+| File | Description |
+|------|-------------|
+| `fraud_data_geolocated.csv` | Fraud_Data with `ip_address_int` and `country` |
+| `fraud_data_engineered.csv` | Temporal and velocity features (22 columns) |
+| `fraud_data_features.csv` | Scaled, one-hot encoded matrix (204 columns) |
 
-Exploratory analysis notebooks are in `notebooks/`. Focus areas:
+### Reports (`reports/`)
 
-- Fraud rate and class imbalance
-- Transaction amount and time distributions
-- Correlation and feature importance previews
-- Segment-level fraud patterns
+| File | Description |
+|------|-------------|
+| `class_imbalance_summary.md` | Before/after SMOTE distributions |
+| `class_imbalance_comparison.csv` | Class counts by pipeline stage |
 
-## Class Imbalance
+## Key Findings (Task 1)
 
-<!-- Describe resampling strategy: SMOTE, class weights, evaluation metrics -->
+**Fraud_Data**
 
-Fraud detection is severely imbalanced. The project uses `imbalanced-learn` for resampling and evaluates models with metrics suited to rare events (e.g., precision-recall AUC, F1, recall at fixed precision).
+- No missing values or duplicates in raw data
+- Strongest signal: median signup-to-purchase time is ~0 hours for fraud vs ~1,443 hours for legitimate users
+- Direct traffic has the highest fraud rate (~10.5%) among acquisition channels
+- 85.5% of IP addresses matched to a country via range lookup
 
-## Interim Submission
+**creditcard.csv**
 
-<!-- Checklist of completed interim deliverables -->
+- 1,081 duplicate rows removed during preprocessing
+- Extreme imbalance (~599:1); fraud transactions have lower median amount (€9.82 vs €22.00)
 
-**Deliverables for Week 5-6:**
+**Class imbalance handling**
 
-- [ ] Project structure and reproducible environment (`requirements.txt`, CI workflow)
-- [ ] Data loading and preprocessing modules (`src/`)
-- [ ] EDA notebooks with documented insights
-- [ ] Baseline model training and evaluation
-- [ ] Class imbalance handling experiments
-- [ ] README updates with findings and next steps
+- SMOTE applied to the training split only (test set never resampled)
+- Training set balanced from 9.36% to 50% fraud after SMOTE
 
 ## Project Structure
 
 ```
 fraud-detection-analytics/
-├── .github/workflows/   # CI pipeline
+├── .github/workflows/     # CI: install deps + pytest
 ├── data/
-│   ├── raw/             # Source datasets (gitignored)
-│   └── processed/       # Cleaned feature tables (gitignored)
-├── models/              # Trained model artifacts (gitignored)
-├── notebooks/           # EDA and experimentation
-├── scripts/             # CLI entry points
-├── src/                 # Reusable Python modules
-└── tests/               # Unit tests
+│   ├── raw/               # Source CSVs (gitignored)
+│   └── processed/         # Pipeline outputs (gitignored)
+├── docs/
+│   ├── week-5-6-interim-report.html   # Submittable interim report
+│   ├── week-5-6-interim-report.md
+│   └── class-imbalance-handling.md
+├── notebooks/
+│   └── eda-fraud-data.ipynb
+├── reports/               # Generated diagnostics (gitignored)
+├── scripts/               # CLI entry points
+├── src/
+│   ├── data/              # Dataset loaders
+│   ├── features/          # Feature engineering
+│   ├── modeling/          # Class imbalance handling
+│   ├── preprocessing/     # Cleaning, geolocation, inspection
+│   └── utils/
+├── tests/                 # 43 pytest tests
+├── requirements.txt
+└── README.md
 ```
+
+## Python API (examples)
+
+```python
+from src.preprocessing import preprocess_fraud_data, enrich_fraud_data_with_country
+from src.features import engineer_fraud_features, build_fraud_feature_matrix
+from src.modeling import prepare_resampled_training_data
+
+# Preprocess and enrich
+fraud_df = preprocess_fraud_data()
+geo_df = enrich_fraud_data_with_country()
+
+# Feature engineering
+features, target, engineered = build_fraud_feature_matrix()
+
+# SMOTE on training split only
+result = prepare_resampled_training_data(features, target, strategy="smote")
+X_train, y_train = result.x_train_resampled, result.y_train_resampled
+X_test, y_test = result.x_test, result.y_test
+```
+
+## Interim Report
+
+The Week 5–6 interim submission report is available as a self-contained HTML file:
+
+**[docs/week-5-6-interim-report.html](docs/week-5-6-interim-report.html)**
+
+Regenerate after content changes:
+
+```bash
+python scripts/build_interim_report_html.py
+```
+
+## Interim Deliverables (Task 1)
+
+- [x] Project structure, `requirements.txt`, and CI workflow
+- [x] Data loading and preprocessing modules (`src/preprocessing/`)
+- [x] EDA notebook for Fraud_Data (`notebooks/eda-fraud-data.ipynb`)
+- [x] Geolocation enrichment pipeline
+- [x] Feature engineering pipeline
+- [x] Class imbalance handling (SMOTE on train only)
+- [x] Unit and integration tests (43 passing)
+- [x] Interim report (HTML + Markdown)
+- [ ] Baseline model training and evaluation
+- [ ] SHAP interpretability analysis
+
+## Next Steps
+
+1. Train baseline classifiers (logistic regression, Random Forest, XGBoost) on SMOTE-balanced training data
+2. Evaluate on the untouched test set using precision, recall, F1, and PR-AUC
+3. Extend feature engineering to `creditcard.csv`
+4. Apply SHAP for model interpretability
+5. Compare SMOTE against class-weighted models
 
 ## License
 
-<!-- Add license if required by course -->
+Add license details here if required by your course or organization.
