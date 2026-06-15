@@ -173,6 +173,19 @@ The dashboard loads artifacts from `reports/` and processed data from `data/proc
 
 ---
 
+## Documentation
+
+| Document | Path |
+|----------|------|
+| Final report (Markdown) | [`docs/final-report.md`](docs/final-report.md) |
+| Final report (PDF export) | [`docs/final-report.html`](docs/final-report.html) |
+| Interim report | [`docs/week-5-6-interim-report.md`](docs/week-5-6-interim-report.md) |
+| Final audit checklist | [`reports/final_checklist.md`](reports/final_checklist.md) |
+
+Regenerate HTML: `python scripts/build_final_report_html.py`
+
+---
+
 ## Installation
 
 **Prerequisites:** Python 3.10+, Git
@@ -213,6 +226,7 @@ python scripts/run_imbalance_resampling.py
 python scripts/run_modeling_reports.py
 python scripts/run_shap_analysis.py
 python scripts/run_fraud_insights.py
+python scripts/build_final_report_html.py
 
 # Dashboard
 streamlit run dashboard/app.py

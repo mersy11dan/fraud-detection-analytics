@@ -39,6 +39,7 @@ models/*
 # Local outputs and reports
 outputs/
 reports/
+!reports/final_checklist.md
 logs/
 *.log
 figures/
