@@ -193,9 +193,22 @@ def compare_model_results(
         rows.append(row)
 
     comparison = pd.DataFrame(rows)
+    if "auc_pr" in comparison.columns:
+        comparison["pr_auc"] = comparison["auc_pr"]
     if sort_by in comparison.columns:
         comparison = comparison.sort_values(sort_by, ascending=ascending).reset_index(drop=True)
     return comparison
+
+
+def identify_best_model(
+    results: list[ModelTrainingResult],
+    *,
+    metric: str = "auc_pr",
+) -> ModelTrainingResult:
+    """Return the best model result ranked by the chosen metric."""
+    comparison = compare_model_results(results, sort_by=metric)
+    best_name = comparison.iloc[0]["model_name"]
+    return next(result for result in results if result.model_name == best_name)
 
 
 def save_model_metrics(
