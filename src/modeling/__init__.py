@@ -44,6 +44,8 @@ __all__ = [
     "ModelingSplit",
     "ModelingWorkflowResult",
     "ModelTrainingResult",
+    "ShapAnalysisPaths",
+    "ShapAnalysisResult",
     "TuningResult",
     "compare_class_distributions",
     "compare_model_results",
@@ -56,11 +58,13 @@ __all__ = [
     "get_default_estimators",
     "get_tuning_configs",
     "identify_best_model",
+    "load_best_model_for_shap",
     "load_fraud_feature_matrix",
     "plot_top_features",
     "prepare_fraud_modeling_data",
     "prepare_resampled_training_data",
     "run_fraud_modeling_workflow",
+    "run_shap_explainability_workflow",
     "save_imbalance_report",
     "save_model_metrics",
     "save_modeling_report",
@@ -70,3 +74,19 @@ __all__ = [
     "train_multiple_classifiers",
     "tune_classifier",
 ]
+
+_LAZY_EXPORTS = {
+    "ShapAnalysisPaths": "src.modeling.shap_explain",
+    "ShapAnalysisResult": "src.modeling.shap_explain",
+    "load_best_model_for_shap": "src.modeling.shap_explain",
+    "run_shap_explainability_workflow": "src.modeling.shap_explain",
+}
+
+
+def __getattr__(name: str):
+    if name in _LAZY_EXPORTS:
+        import importlib
+
+        module = importlib.import_module(_LAZY_EXPORTS[name])
+        return getattr(module, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

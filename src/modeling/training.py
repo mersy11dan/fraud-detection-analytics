@@ -36,6 +36,7 @@ class ModelTrainingResult:
     metrics: ClassificationMetrics
     feature_names: list[str]
     x_train: pd.DataFrame | None = None
+    x_test: pd.DataFrame | None = None
 
 
 def get_default_estimators(
@@ -139,6 +140,7 @@ def train_classifier(
         metrics=metrics,
         feature_names=x_train.columns.tolist(),
         x_train=x_train.reset_index(drop=True) if store_training_data else None,
+        x_test=x_test.reset_index(drop=True) if store_training_data else None,
     )
 
 
