@@ -1,27 +1,199 @@
 # Fraud Detection Analytics
 
-Week 5–6 interim submission for fraud detection analytics: preprocessing, EDA, geolocation enrichment, feature engineering, class imbalance handling, and baseline modeling.
+[![Python](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python&logoColor=white)](https://www.python.org/)
+[![scikit-learn](https://img.shields.io/badge/scikit--learn-1.3%2B-orange)](https://scikit-learn.org/)
+[![Streamlit](https://img.shields.io/badge/Streamlit-Dashboard-red?logo=streamlit&logoColor=white)](https://streamlit.io/)
+[![pytest](https://img.shields.io/badge/tests-pytest-green?logo=pytest&logoColor=white)](tests/)
+[![CI](https://img.shields.io/badge/CI-GitHub%20Actions-lightgrey?logo=github)](.github/workflows/ci.yml)
 
-## Overview
+End-to-end machine learning project for detecting fraudulent e-commerce transactions. The pipeline covers data cleaning, exploratory analysis, feature engineering, class imbalance handling, tuned classification models, SHAP explainability, executive insights, and an interactive Streamlit dashboard.
 
-This project builds a reproducible pipeline for detecting fraudulent transactions using two datasets:
+---
 
-- **Fraud_Data.csv** — e-commerce transactions with user, channel, and behavioral features (~9.4% fraud)
-- **creditcard.csv** — PCA-transformed credit card transactions (~0.17% fraud)
-- **IpAddress_to_Country.csv** — IPv4 range-to-country mapping for geolocation enrichment
+## Project Overview
 
-Task 1 delivers data understanding, cleaning, EDA, geolocation enrichment, feature engineering, and SMOTE-based imbalance handling. Task 2 adds baseline model training, evaluation, and report-ready modeling outputs on Fraud_Data first.
+This repository implements a reproducible fraud analytics workflow on real-world transaction data. The primary modeling target is **Fraud_Data** — an e-commerce dataset with user, channel, device, and behavioral attributes. A secondary **creditcard.csv** dataset is preprocessed for future modeling.
 
-## Quick Start
+The project is structured as a modular Python package (`src/`) with CLI scripts, Jupyter notebooks, automated tests, and report-ready artifacts under `reports/`. Design goals include leakage-safe preprocessing, imbalanced-learning best practices, and stakeholder-ready outputs for data scientists, fraud analysts, and executives.
 
-### Prerequisites
+---
 
-- Python 3.10+
-- Git
+## Business Problem
 
-### Installation
+Online merchants lose revenue and customer trust when fraudulent transactions are approved. Manual review of every order is not scalable; fully automated blocking risks false declines and poor customer experience.
+
+**Objective:** Build a model that reliably prioritizes suspicious transactions for review while keeping false alarms low. Success is measured by precision-recall trade-offs appropriate for a **review-first** deployment — high precision to protect analyst capacity, with recall improvements targeted through threshold tuning and verification workflows.
+
+---
+
+## Dataset Description
+
+| Dataset | File | Rows (approx.) | Fraud rate | Role |
+|---------|------|----------------|------------|------|
+| E-commerce fraud | `Fraud_Data.csv` | 151,112 | 9.36% | Primary modeling dataset |
+| Credit card (PCA features) | `creditcard.csv` | 284,807 | 0.17% | Preprocessed; modeling planned |
+| IP geolocation | `IpAddress_to_Country.csv` | 138,846 | — | Country enrichment lookup |
+
+**Fraud_Data key fields:** `user_id`, signup/purchase timestamps, `purchase_value`, `device_id`, acquisition `source`, `browser`, `sex`, `age`, `ip_address`, and binary `class` (fraud label).
+
+Place raw CSVs in `data/raw/` before running pipelines. Processed outputs are written to `data/processed/` (gitignored).
+
+---
+
+## Project Structure
+
+```
+fraud-detection-analytics/
+├── dashboard/                 # Streamlit app (app.py)
+├── data/
+│   ├── raw/                   # Source CSVs (gitignored)
+│   └── processed/             # Pipeline outputs (gitignored)
+├── docs/                      # Interim report (HTML/Markdown)
+├── notebooks/
+│   ├── eda-fraud-data.ipynb   # Exploratory analysis
+│   └── modeling.ipynb         # Model training & evaluation
+├── reports/                   # Generated diagnostics & insights
+│   ├── modeling/              # Metrics, feature importance (legacy path)
+│   ├── outputs/               # Model comparison CSVs, plots (primary)
+│   ├── shap/                  # SHAP summaries
+│   └── fraud_insights.md      # Executive recommendations
+├── scripts/                   # CLI entry points
+├── src/
+│   ├── data/                  # Dataset loaders
+│   ├── features/              # Feature engineering
+│   ├── modeling/              # Training, tuning, SHAP, insights
+│   ├── preprocessing/         # Cleaning, geolocation, inspection
+│   └── utils/
+├── tests/                     # pytest suite
+├── requirements.txt
+└── README.md
+```
+
+---
+
+## Methodology
+
+### Data Cleaning
+
+- Inspect schema, dtypes, missing values, and duplicates for both datasets.
+- Parse timestamps; remove duplicate rows from `creditcard.csv` (1,081 removed).
+- Standardize column names and validate fraud label distributions.
+- Entry point: `python scripts/run_preprocess.py`
+
+### EDA
+
+- Profile fraud rate by acquisition channel, geography, and purchase timing.
+- Key finding: median signup-to-purchase time is **~0 hours** for fraud vs **~1,443 hours** for legitimate users.
+- Direct traffic shows the highest channel fraud rate (~10.5%).
+- Notebook: `notebooks/eda-fraud-data.ipynb`
+
+### Feature Engineering
+
+- **Temporal:** `time_since_signup_hours`, `hour_of_day`, `day_of_week`
+- **Velocity:** rolling transaction counts and user velocity (limited signal — one txn/user in current data)
+- **Geolocation:** IP-to-country mapping (85.5% match rate)
+- **Encoding:** scaled numerics + one-hot categoricals → 203 features + label
+- Entry points: `run_geolocation_enrichment.py`, `run_feature_engineering.py`
+
+### Class Imbalance Handling
+
+- Stratified **80/20** train/test split (`RANDOM_STATE=42`); holdout retains ~9.4% fraud prevalence.
+- **SMOTE** applied to the training split only — test set never resampled.
+- Training distribution balanced from 9.36% → 50% fraud after SMOTE.
+- Entry point: `python scripts/run_imbalance_resampling.py`
+
+### Modeling
+
+| Model | Tuning strategy | CV metric |
+|-------|-----------------|-----------|
+| Logistic Regression | `GridSearchCV` (`C`) | PR-AUC |
+| Random Forest | `RandomizedSearchCV` | PR-AUC |
+| XGBoost | `RandomizedSearchCV` | PR-AUC |
+
+- 3-fold cross-validation on the pre-SMOTE training split; final models refit on SMOTE-balanced data.
+- Metrics: precision, recall, F1, ROC-AUC, **PR-AUC** (primary selection metric).
+- Best model selected automatically by holdout PR-AUC.
+- Entry points: `python scripts/run_modeling_reports.py`, `notebooks/modeling.ipynb`
+
+### Explainability
+
+- Feature importance from the best model (Random Forest).
+- **SHAP** analysis: summary, bar, waterfall, and dependence plots.
+- Stakeholder markdown summaries for fraud analysts and executives.
+- Entry points: `python scripts/run_shap_analysis.py`, `python scripts/run_fraud_insights.py`
+
+---
+
+## Results
+
+**Best model:** `random_forest_tuned` (selected by PR-AUC)
+
+| Metric | Value |
+|--------|-------|
+| PR-AUC | 0.625 |
+| Precision | 99.1% |
+| Recall | 52.7% |
+| F1 | 0.688 |
+| ROC-AUC | 0.770 |
+
+**Holdout confusion matrix (30,223 transactions):**
+
+| | Predicted Legitimate | Predicted Fraud |
+|--|---------------------|-----------------|
+| **Actual Legitimate** | 27,380 (TN) | 13 (FP) |
+| **Actual Fraud** | 1,338 (FN) | 1,492 (TP) |
+
+**Top feature drivers:** `time_since_signup_hours` (~69% importance), followed by geography, purchase timing, age, and purchase value.
+
+Full artifacts: `reports/modeling/` or `reports/outputs/` · `reports/shap/` · `reports/fraud_insights.md`
+
+---
+
+## Key Insights
+
+1. **Signup velocity is the dominant signal** — fraudsters purchase almost immediately after account creation; legitimate customers wait weeks on average.
+2. **High precision supports review-first deployment** — only 13 false positives on holdout; flagged cases are strong manual-review candidates.
+3. **Recall gap remains** — ~47% of fraud is missed at the default threshold; threshold tuning and verification workflows are the highest-impact next steps.
+4. **Geography and channel add context** — country and browser features rank in the top 10 but should inform triage, not blanket blocking.
+5. **Rules + ML combination** — new-account purchase cooldowns address the strongest signal without model inference alone.
+
+---
+
+## Dashboard
+
+An interactive **Streamlit** dashboard visualizes KPIs, EDA, model performance, SHAP drivers, and executive recommendations.
 
 ```bash
+streamlit run dashboard/app.py
+```
+
+**Pages:** Overview · Dataset Summary · Fraud EDA · Model Performance · SHAP Explainability · Executive Recommendations
+
+The dashboard loads artifacts from `reports/` and processed data from `data/processed/`.
+
+---
+
+## Documentation
+
+| Document | Path |
+|----------|------|
+| Final report (Markdown) | [`docs/final-report.md`](docs/final-report.md) |
+| Final report (PDF export) | [`docs/final-report.html`](docs/final-report.html) |
+| Interim report | [`docs/week-5-6-interim-report.md`](docs/week-5-6-interim-report.md) |
+| Final audit checklist | [`reports/final_checklist.md`](reports/final_checklist.md) |
+
+Regenerate HTML: `python scripts/build_final_report_html.py`
+
+---
+
+## Installation
+
+**Prerequisites:** Python 3.10+, Git
+
+```bash
+git clone <repository-url>
+cd fraud-detection-analytics
+
 python -m venv .venv
 # Windows
 .venv\Scripts\activate
@@ -31,211 +203,66 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### Run tests
+Place raw datasets in `data/raw/`:
+
+- `Fraud_Data.csv`
+- `creditcard.csv`
+- `IpAddress_to_Country.csv`
+
+---
+
+## Reproducibility
+
+Run the full pipeline from the project root:
+
+```bash
+# Task 1 — data preparation
+python scripts/run_preprocess.py
+python scripts/run_geolocation_enrichment.py
+python scripts/run_feature_engineering.py
+python scripts/run_imbalance_resampling.py
+
+# Task 2 — modeling & insights
+python scripts/run_modeling_reports.py
+python scripts/run_shap_analysis.py
+python scripts/run_fraud_insights.py
+python scripts/build_final_report_html.py
+
+# Dashboard
+streamlit run dashboard/app.py
+```
+
+**Verify with tests:**
 
 ```bash
 pytest tests/ -v
 ```
 
-CI runs the same test suite on push/PR via GitHub Actions (`.github/workflows/ci.yml`).
+CI runs the same test suite on push/PR via [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
-## Data
+**Configuration:** `src/config.py` — `RANDOM_STATE=42`, `TEST_SIZE=0.2`, output paths.
 
-Place raw CSV files in `data/raw/` before running pipelines. Raw and processed data are gitignored.
-
-| Dataset | File | Rows (approx.) | Fraud rate |
-|---------|------|----------------|------------|
-| E-commerce fraud | `Fraud_Data.csv` | 151,112 | 9.36% |
-| Credit card | `creditcard.csv` | 284,807 | 0.17% |
-| IP geolocation | `IpAddress_to_Country.csv` | 138,846 | — |
-
-## Pipelines
-
-Run scripts from the project root:
-
-```bash
-# Clean and save processed datasets
-python scripts/run_preprocess.py
-
-# Enrich Fraud_Data with country labels
-python scripts/run_geolocation_enrichment.py
-
-# Engineer and encode features
-python scripts/run_feature_engineering.py
-
-# Apply SMOTE on training split and write imbalance report
-python scripts/run_imbalance_resampling.py
-
-# Train comparison models and write report-ready outputs
-python scripts/run_modeling_reports.py
-```
-
-### Processed outputs (`data/processed/`)
-
-| File | Description |
-|------|-------------|
-| `fraud_data_geolocated.csv` | Fraud_Data with `ip_address_int` and `country` |
-| `fraud_data_engineered.csv` | Temporal and velocity features (22 columns) |
-| `fraud_data_features.csv` | Scaled, one-hot encoded matrix (204 columns) |
-
-### Reports (`reports/`)
-
-| File | Description |
-|------|-------------|
-| `class_imbalance_summary.md` | Before/after SMOTE distributions |
-| `class_imbalance_comparison.csv` | Class counts by pipeline stage |
-
-### Modeling reports (`reports/modeling/`)
-
-Generated by `python scripts/run_modeling_reports.py` or from `notebooks/modeling.ipynb` (section 6):
-
-| File | Description |
-|------|-------------|
-| `model_comparison_metrics.csv` | Side-by-side model metrics (accuracy, precision, recall, F1, ROC-AUC, AUC-PR) |
-| `best_model_summary.md` | Narrative best-model summary for interim/final reports |
-| `best_model_summary.csv` | One-row best-model snapshot |
-| `top_features_best_model.csv` | Top feature importances for the best model |
-| `plots/model_comparison_pr_curve.png` | Precision-recall curve comparison |
-| `plots/best_model_confusion_matrix.png` | Best-model confusion matrix |
-| `plots/best_model_feature_importance.png` | Top-10 feature importance chart |
-
-## Key Findings (Task 1)
-
-**Fraud_Data**
-
-- No missing values or duplicates in raw data
-- Strongest signal: median signup-to-purchase time is ~0 hours for fraud vs ~1,443 hours for legitimate users
-- Direct traffic has the highest fraud rate (~10.5%) among acquisition channels
-- 85.5% of IP addresses matched to a country via range lookup
-
-**creditcard.csv**
-
-- 1,081 duplicate rows removed during preprocessing
-- Extreme imbalance (~599:1); fraud transactions have lower median amount (€9.82 vs €22.00)
-
-**Class imbalance handling**
-
-- SMOTE applied to the training split only (test set never resampled)
-- Training set balanced from 9.36% to 50% fraud after SMOTE
-
-## Task 2 — Modeling Progress
-
-**Dataset modeled first:** `Fraud_Data` (e-commerce), using the processed feature matrix in `data/processed/fraud_data_features.csv` (203 encoded features + `class` label).
-
-**Preprocessing and imbalance handling**
-
-- Raw transactions cleaned, geolocation-enriched, and feature-engineered via the Task 1 pipeline (temporal, velocity, scaled numerics, one-hot categoricals).
-- Stratified **80/20 train/test split** (`RANDOM_STATE=42`) so the holdout reflects ~9% fraud prevalence.
-- **SMOTE applied to the training split only**; the test set is never resampled.
-
-**Models trained**
-
-| Model | Notes |
-|-------|-------|
-| Logistic Regression | Linear baseline on SMOTE-balanced training data |
-| Random Forest (tuned) | `GridSearchCV` over `n_estimators`, `max_depth`, `min_samples_leaf`; CV scored on AUC-PR, then refit on SMOTE-balanced data |
-
-Workflow: `notebooks/modeling.ipynb` and `scripts/run_modeling_reports.py`.
-
-**Evaluation metrics**
-
-Accuracy, precision, recall, F1, ROC-AUC, AUC-PR, and confusion matrix counts (TP/FP/FN/TN). **AUC-PR** is the primary metric for model selection on this imbalanced dataset.
-
-**Current best model:** `random_forest_tuned` — holdout **AUC-PR 0.625**, **F1 0.688**, precision **0.99**, recall **0.53** (vs logistic regression AUC-PR 0.386). Full comparison: `reports/modeling/model_comparison_metrics.csv` and `reports/modeling/best_model_summary.md`.
-
-**Explainability so far:** built-in feature importance / coefficients for the best model (`reports/modeling/top_features_best_model.csv`). **SHAP and deeper per-transaction explainability are planned next** — not part of this interim modeling pass.
-
-## Project Structure
-
-```
-fraud-detection-analytics/
-├── .github/workflows/     # CI: install deps + pytest
-├── data/
-│   ├── raw/               # Source CSVs (gitignored)
-│   └── processed/         # Pipeline outputs (gitignored)
-├── docs/
-│   ├── week-5-6-interim-report.html   # Submittable interim report
-│   ├── week-5-6-interim-report.md
-│   └── class-imbalance-handling.md
-├── notebooks/
-│   ├── eda-fraud-data.ipynb
-│   └── modeling.ipynb
-├── reports/               # Generated diagnostics (gitignored)
-│   └── modeling/          # Model comparison CSVs, summaries, plots
-├── scripts/               # CLI entry points
-├── src/
-│   ├── data/              # Dataset loaders
-│   ├── features/          # Feature engineering
-│   ├── modeling/          # Training, imbalance handling, reporting
-│   ├── preprocessing/     # Cleaning, geolocation, inspection
-│   └── utils/
-├── tests/                 # 60 pytest tests
-├── requirements.txt
-└── README.md
-```
-
-## Python API (examples)
+**Python API example:**
 
 ```python
-from src.preprocessing import preprocess_fraud_data, enrich_fraud_data_with_country
-from src.features import engineer_fraud_features, build_fraud_feature_matrix
-from src.modeling import prepare_resampled_training_data, save_modeling_report
+from src.modeling import run_fraud_modeling_workflow, run_shap_explainability_workflow
 
-# Preprocess and enrich
-fraud_df = preprocess_fraud_data()
-geo_df = enrich_fraud_data_with_country()
-
-# Feature engineering
-features, target, engineered = build_fraud_feature_matrix()
-
-# SMOTE on training split only
-result = prepare_resampled_training_data(features, target, strategy="smote")
-X_train, y_train = result.x_train_resampled, result.y_train_resampled
-X_test, y_test = result.x_test, result.y_test
-
-# After training classifiers, export report artifacts to reports/modeling/
-# save_modeling_report([baseline_result, ensemble_result])
+workflow = run_fraud_modeling_workflow(save_report=True)
+shap_analysis = run_shap_explainability_workflow(workflow=workflow)
 ```
 
-## Interim Report
+---
 
-The Week 5–6 interim submission report is available as a self-contained HTML file:
+## Future Improvements
 
-**[docs/week-5-6-interim-report.html](docs/week-5-6-interim-report.html)**
+- **Threshold tuning** — optimize decision thresholds on the PR curve for business-specific precision/recall targets.
+- **creditcard.csv modeling** — extend the pipeline to the highly imbalanced credit-card dataset.
+- **Resampling comparison** — benchmark SMOTE against class weights, ADASYN, and undersampling.
+- **Velocity features** — re-engineer when repeat-purchase data becomes available.
+- **Model monitoring** — feature drift detection and scheduled retraining after fraud incidents.
+- **Production deployment** — API scoring service and integration with case-management tooling.
 
-Regenerate after content changes:
-
-```bash
-python scripts/build_interim_report_html.py
-```
-
-## Interim Deliverables (Task 1)
-
-- [x] Project structure, `requirements.txt`, and CI workflow
-- [x] Data loading and preprocessing modules (`src/preprocessing/`)
-- [x] EDA notebook for Fraud_Data (`notebooks/eda-fraud-data.ipynb`)
-- [x] Geolocation enrichment pipeline
-- [x] Feature engineering pipeline
-- [x] Class imbalance handling (SMOTE on train only)
-- [x] Unit and integration tests
-- [x] Interim report (HTML + Markdown)
-
-## Task 2 Deliverables (in progress)
-
-- [x] Reusable modeling utilities (`src/modeling/`)
-- [x] Modeling notebook (`notebooks/modeling.ipynb`)
-- [x] Baseline Logistic Regression + tuned Random Forest on Fraud_Data
-- [x] Model comparison metrics and report-ready outputs (`reports/modeling/`)
-- [x] Basic feature importance for the best model
-- [ ] SHAP interpretability analysis
-- [ ] Modeling pass for `creditcard.csv`
-
-## Next Steps
-
-1. Apply SHAP for per-transaction explainability on the best Fraud_Data model
-2. Tune decision thresholds for business-specific precision/recall trade-offs
-3. Extend feature engineering and modeling to `creditcard.csv`
-4. Compare SMOTE against class-weighted and other resampling strategies
+---
 
 ## License
 

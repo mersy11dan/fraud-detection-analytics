@@ -69,11 +69,13 @@ def test_save_modeling_report_writes_expected_artifacts(tmp_path: Path) -> None:
     assert paths.best_model_summary_csv.exists()
     assert paths.top_features_csv.exists()
     assert paths.pr_curve_plot.exists()
-    assert paths.confusion_matrix_plot.exists()
+    assert paths.roc_curve_plot.exists()
     assert paths.feature_importance_plot.exists()
+    assert len(paths.confusion_matrix_plots) == 2
 
     metrics = pd.read_csv(paths.metrics_csv)
     assert set(metrics["model_name"]) == {"logistic_regression", "random_forest_tuned"}
+    assert "pr_auc" in metrics.columns
 
 
 def test_build_best_model_summary_csv_has_runner_up_gap() -> None:
@@ -99,6 +101,6 @@ def test_build_best_model_summary_csv_has_runner_up_gap() -> None:
     summary = build_best_model_summary_csv(comparison, best)
 
     assert summary.loc[0, "model_name"] == comparison.iloc[0]["model_name"]
-    assert summary.loc[0, "auc_pr_gap_vs_runner_up"] == pytest.approx(
-        comparison.iloc[0]["auc_pr"] - comparison.iloc[1]["auc_pr"]
+    assert summary.loc[0, "pr_auc_gap_vs_runner_up"] == pytest.approx(
+        comparison.iloc[0]["pr_auc"] - comparison.iloc[1]["pr_auc"]
     )
