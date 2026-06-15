@@ -17,6 +17,7 @@ from src.modeling.metrics import (
     compute_classification_metrics,
     confusion_matrix_frame,
 )
+from src.modeling.insights import build_fraud_insights_markdown, save_fraud_insights
 from src.modeling.interpretation import (
     describe_feature,
     extract_feature_importance,
@@ -47,6 +48,7 @@ __all__ = [
     "ShapAnalysisPaths",
     "ShapAnalysisResult",
     "TuningResult",
+    "build_fraud_insights_markdown",
     "compare_class_distributions",
     "compare_model_results",
     "compute_classification_metrics",
@@ -65,6 +67,7 @@ __all__ = [
     "prepare_resampled_training_data",
     "run_fraud_modeling_workflow",
     "run_shap_explainability_workflow",
+    "save_fraud_insights",
     "save_imbalance_report",
     "save_model_metrics",
     "save_modeling_report",
