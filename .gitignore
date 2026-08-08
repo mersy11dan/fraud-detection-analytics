@@ -36,14 +36,25 @@ models/*
 *.h5
 *.onnx
 
-# Local outputs and reports
-outputs/
-reports/
+# Local outputs and reports (track key submission artifacts)
+reports/*
 !reports/final_checklist.md
+!reports/fraud_insights.md
+!reports/class_imbalance_summary.md
+!reports/class_imbalance_comparison.csv
+!reports/final_report.html
+!reports/outputs/
+!reports/outputs/**
+!reports/figures/
+!reports/figures/**
+!reports/shap/
+!reports/shap/**
+!reports/modeling/
+!reports/modeling/**
 logs/
 *.log
-figures/
-plots/
+/figures/
+/plots/
 
 # OS
 .DS_Store

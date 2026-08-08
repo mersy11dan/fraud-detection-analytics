@@ -1,0 +1,7 @@
+stage,class,count,pct,imbalance_ratio
+train_before_resampling,0,109568,90.6352,9.6783
+train_before_resampling,1,11321,9.3648,9.6783
+train_after_resampling,0,109568,50.0,1.0
+train_after_resampling,1,109568,50.0,1.0
+test_holdout_unmodified,0,27393,90.6363,9.6795
+test_holdout_unmodified,1,2830,9.3637,9.6795

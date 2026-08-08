@@ -13,11 +13,21 @@ import shap
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 
-from src.config import RANDOM_STATE, SHAP_FIGURES_DIR, SHAP_REPORTS_DIR
+from src.config import (
+    CREDITCARD_SHAP_FIGURES_DIR,
+    CREDITCARD_SHAP_REPORTS_DIR,
+    RANDOM_STATE,
+    SHAP_FIGURES_DIR,
+    SHAP_REPORTS_DIR,
+)
 from src.modeling.data import load_fraud_feature_matrix, stratified_train_test_split
 from src.modeling.interpretation import describe_feature
 from src.modeling.training import ModelTrainingResult
-from src.modeling.workflow import ModelingWorkflowResult, run_fraud_modeling_workflow
+from src.modeling.workflow import (
+    ModelingWorkflowResult,
+    run_creditcard_modeling_workflow,
+    run_fraud_modeling_workflow,
+)
 from src.utils.logging_config import get_logger
 from src.utils.paths import ensure_dir
 
@@ -212,6 +222,18 @@ def _business_why_text(feature: str) -> str:
         return "Purchase timing can differ when fraud activity clusters at unusual hours or days."
     if feature == "age":
         return "Customer age may correlate with different purchasing and risk patterns in the training data."
+    if feature == "amount":
+        return (
+            "Fraudulent card-not-present transactions in this dataset tend to use smaller amounts "
+            "than typical legitimate purchases."
+        )
+    if feature == "time":
+        return "Fraud cases may cluster at different points along the transaction timeline."
+    if feature.startswith("v") and feature[1:].isdigit():
+        return (
+            "PCA components capture anonymized correlations in the original card transaction features. "
+            "They are not directly interpretable as merchant-facing business rules."
+        )
     return (
         "This feature helps the model separate fraud from legitimate transactions based on "
         "patterns learned from historical data."
@@ -223,11 +245,13 @@ def build_shap_summary_markdown(
     top_features: pd.DataFrame,
     *,
     waterfall_row: int,
+    dataset_label: str = "Fraud_Data",
 ) -> str:
     """Build a stakeholder-friendly markdown summary of SHAP findings."""
     metrics = result.metrics
+    is_creditcard = dataset_label.lower() == "creditcard"
     lines = [
-        "# SHAP Explainability Summary — Fraud_Data",
+        f"# SHAP Explainability Summary — {dataset_label}",
         "",
         "## Model explained",
         f"- **Model:** `{result.model_name}`",
@@ -240,9 +264,21 @@ def build_shap_summary_markdown(
         "It does not prove causation, but it helps analysts understand why the model scored ",
         "a case highly and which patterns deserve operational attention.",
         "",
-        "## Top 10 fraud predictors",
-        "",
     ]
+    if is_creditcard:
+        lines.extend(
+            [
+                "> **PCA note:** `v1`–`v28` are anonymized principal components. SHAP ranks their ",
+                "> contribution to model scores but cannot recover original merchant-facing attributes.",
+                "",
+            ]
+        )
+    lines.extend(
+        [
+            "## Top 10 fraud predictors",
+            "",
+        ]
+    )
 
     for rank, row in top_features.iterrows():
         feature = row["feature"]
@@ -270,11 +306,25 @@ def build_shap_summary_markdown(
             "",
             "## Responsible use",
             "",
-            "- Geographic and channel signals should inform **review queues**, not blanket customer rejection.",
-            "- SHAP reflects patterns in historical data; new fraud tactics may not appear until retraining.",
-            "- Combine model explanations with policy, customer context, and investigator judgment.",
         ]
     )
+    if is_creditcard:
+        lines.extend(
+            [
+                "- PCA features should guide **model monitoring and retraining**, not customer-facing decline rules.",
+                "- Combine SHAP rankings with amount/time thresholds and investigator review for card streams.",
+                "- SHAP reflects historical patterns; new fraud tactics may not appear until retraining.",
+                "- Combine model explanations with policy, customer context, and investigator judgment.",
+            ]
+        )
+    else:
+        lines.extend(
+            [
+                "- Geographic and channel signals should inform **review queues**, not blanket customer rejection.",
+                "- SHAP reflects patterns in historical data; new fraud tactics may not appear until retraining.",
+                "- Combine model explanations with policy, customer context, and investigator judgment.",
+            ]
+        )
     return "\n".join(lines)
 
 
@@ -357,11 +407,19 @@ def save_shap_dependence_plot(
 
 def load_best_model_for_shap(
     *,
+    dataset: str = "fraud",
     random_state: int = RANDOM_STATE,
     logger: logging.Logger | None = None,
 ) -> ModelingWorkflowResult:
     """Train/tune models and return the best result with training data for SHAP."""
     log = logger or get_logger(__name__)
+    if dataset == "creditcard":
+        return run_creditcard_modeling_workflow(
+            save_report=False,
+            store_training_data=True,
+            random_state=random_state,
+            logger=log,
+        )
     return run_fraud_modeling_workflow(
         save_report=False,
         store_training_data=True,
@@ -374,11 +432,12 @@ def run_shap_explainability_workflow(
     result: ModelTrainingResult | None = None,
     *,
     workflow: ModelingWorkflowResult | None = None,
+    dataset_label: str = "Fraud_Data",
     background_size: int = 200,
     explain_size: int = 300,
     top_n: int = 10,
-    figures_dir: Path = SHAP_FIGURES_DIR,
-    reports_dir: Path = SHAP_REPORTS_DIR,
+    figures_dir: Path | None = None,
+    reports_dir: Path | None = None,
     random_state: int = RANDOM_STATE,
     logger: logging.Logger | None = None,
 ) -> ShapAnalysisResult:
@@ -393,8 +452,17 @@ def run_shap_explainability_workflow(
     if result is None:
         if workflow is None:
             log.info("No model supplied; training workflow to identify best model")
-            workflow = load_best_model_for_shap(random_state=random_state, logger=log)
+            workflow = load_best_model_for_shap(
+                dataset="creditcard" if dataset_label.lower() == "creditcard" else "fraud",
+                random_state=random_state,
+                logger=log,
+            )
         result = workflow.best_result
+        if workflow.dataset_name:
+            dataset_label = workflow.dataset_name
+
+    figure_dir = ensure_dir(figures_dir or SHAP_FIGURES_DIR)
+    report_dir = ensure_dir(reports_dir or SHAP_REPORTS_DIR)
 
     x_background, x_explain, explain_indices = _resolve_matrices(
         result,
@@ -411,8 +479,6 @@ def run_shap_explainability_workflow(
         top_n=top_n,
     )
 
-    figure_dir = ensure_dir(figures_dir)
-    report_dir = ensure_dir(reports_dir)
     local_waterfall_index = _pick_local_waterfall_index(result, explain_indices)
     waterfall_row = int(explain_indices[local_waterfall_index])
 
@@ -439,7 +505,12 @@ def run_shap_explainability_workflow(
 
     top_features.to_csv(paths.top_features_csv, index=False)
     paths.summary_markdown.write_text(
-        build_shap_summary_markdown(result, top_features, waterfall_row=waterfall_row),
+        build_shap_summary_markdown(
+            result,
+            top_features,
+            waterfall_row=waterfall_row,
+            dataset_label=dataset_label,
+        ),
         encoding="utf-8",
     )
 
@@ -454,4 +525,27 @@ def run_shap_explainability_workflow(
         explained_features=x_explain,
         paths=paths,
         waterfall_index=waterfall_row,
+    )
+
+
+def run_creditcard_shap_explainability_workflow(
+    *,
+    workflow: ModelingWorkflowResult | None = None,
+    background_size: int = 200,
+    explain_size: int = 300,
+    top_n: int = 10,
+    random_state: int = RANDOM_STATE,
+    logger: logging.Logger | None = None,
+) -> ShapAnalysisResult:
+    """Generate SHAP artifacts for the best creditcard model."""
+    return run_shap_explainability_workflow(
+        workflow=workflow,
+        dataset_label="creditcard",
+        figures_dir=CREDITCARD_SHAP_FIGURES_DIR,
+        reports_dir=CREDITCARD_SHAP_REPORTS_DIR,
+        background_size=background_size,
+        explain_size=explain_size,
+        top_n=top_n,
+        random_state=random_state,
+        logger=logger,
     )

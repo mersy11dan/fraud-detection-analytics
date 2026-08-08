@@ -1,0 +1,2 @@
+model_name,runner_up_model,selection_metric,accuracy,precision,recall,f1,roc_auc,auc_pr,auc_pr_gap_vs_runner_up,true_positives,false_positives,false_negatives,true_negatives
+random_forest_tuned,logistic_regression,auc_pr,0.9552989445124574,0.9913621262458472,0.5272084805653711,0.6883506343713957,0.7696422791977368,0.6245602243001545,0.23817681724059603,1492,13,1338,27380

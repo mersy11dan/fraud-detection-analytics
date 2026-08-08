@@ -10,6 +10,7 @@ from sklearn.linear_model import LogisticRegression
 
 from src.modeling.data import (
     ModelingSplit,
+    load_creditcard_feature_matrix,
     load_fraud_feature_matrix,
     stratified_train_test_split,
 )
@@ -151,6 +152,30 @@ def test_save_model_metrics_writes_csv(tmp_path: Path) -> None:
 def test_get_default_estimators_includes_baselines() -> None:
     estimators = get_default_estimators(random_state=42)
     assert set(estimators) == {"logistic_regression", "random_forest", "xgboost"}
+
+
+def test_load_creditcard_feature_matrix_from_synthetic_file(tmp_path: Path) -> None:
+    rng = np.random.default_rng(42)
+    rows = 200
+    fraud_count = 20
+    frame = pd.DataFrame(
+        {
+            "time": rng.uniform(0, 100000, rows),
+            "amount": rng.uniform(1, 200, rows),
+            "class": [1] * fraud_count + [0] * (rows - fraud_count),
+        }
+    )
+    for idx in range(1, 29):
+        frame[f"v{idx}"] = rng.normal(size=rows)
+
+    frame = frame.sample(frac=1, random_state=42).reset_index(drop=True)
+    frame.to_csv(tmp_path / "creditcard_clean.csv", index=False)
+
+    features, target = load_creditcard_feature_matrix(data_dir=tmp_path)
+
+    assert len(features) == rows
+    assert len(features.columns) == 30
+    assert target.sum() == fraud_count
 
 
 @pytest.mark.skipif(

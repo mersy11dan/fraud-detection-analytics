@@ -102,6 +102,7 @@ def build_best_model_summary_markdown(
     *,
     importance_table: pd.DataFrame | None = None,
     selection_metric: str = "pr_auc",
+    dataset_label: str = "Fraud_Data",
 ) -> str:
     """Build a markdown summary of the current best fraud model."""
     best_row = comparison.iloc[0]
@@ -114,7 +115,7 @@ def build_best_model_summary_markdown(
             comparison_view[col] = comparison_view[col].map(lambda v: f"{v:.4f}")
 
     lines = [
-        "# Best Fraud Model Summary — Fraud_Data",
+        f"# Best Fraud Model Summary — {dataset_label}",
         "",
         "## Selected model",
         f"- **Model:** `{best_result.model_name}`",
@@ -371,6 +372,7 @@ def save_modeling_report(
     plots_dir: Path | None = None,
     confusion_dir: Path | None = None,
     top_n_features: int = 20,
+    dataset_label: str = "Fraud_Data",
     logger: logging.Logger | None = None,
 ) -> ModelingReportPaths:
     """
@@ -410,6 +412,7 @@ def save_modeling_report(
             comparison,
             best_result,
             importance_table=importance_table,
+            dataset_label=dataset_label,
         ),
         encoding="utf-8",
     )

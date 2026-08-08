@@ -2,7 +2,9 @@
 
 from src.modeling.data import (
     ModelingSplit,
+    load_creditcard_feature_matrix,
     load_fraud_feature_matrix,
+    prepare_creditcard_modeling_data,
     prepare_fraud_modeling_data,
     stratified_train_test_split,
 )
@@ -36,7 +38,11 @@ from src.modeling.training import (
     train_multiple_classifiers,
 )
 from src.modeling.tuning import TuningResult, get_tuning_configs, tune_classifier
-from src.modeling.workflow import ModelingWorkflowResult, run_fraud_modeling_workflow
+from src.modeling.workflow import (
+    ModelingWorkflowResult,
+    run_creditcard_modeling_workflow,
+    run_fraud_modeling_workflow,
+)
 
 __all__ = [
     "ClassificationMetrics",
@@ -61,11 +67,15 @@ __all__ = [
     "get_tuning_configs",
     "identify_best_model",
     "load_best_model_for_shap",
+    "load_creditcard_feature_matrix",
     "load_fraud_feature_matrix",
     "plot_top_features",
+    "prepare_creditcard_modeling_data",
     "prepare_fraud_modeling_data",
     "prepare_resampled_training_data",
+    "run_creditcard_modeling_workflow",
     "run_fraud_modeling_workflow",
+    "run_creditcard_shap_explainability_workflow",
     "run_shap_explainability_workflow",
     "save_fraud_insights",
     "save_imbalance_report",
@@ -82,6 +92,7 @@ _LAZY_EXPORTS = {
     "ShapAnalysisPaths": "src.modeling.shap_explain",
     "ShapAnalysisResult": "src.modeling.shap_explain",
     "load_best_model_for_shap": "src.modeling.shap_explain",
+    "run_creditcard_shap_explainability_workflow": "src.modeling.shap_explain",
     "run_shap_explainability_workflow": "src.modeling.shap_explain",
 }
 

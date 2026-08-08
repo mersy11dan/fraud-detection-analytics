@@ -6,15 +6,18 @@
 [![pytest](https://img.shields.io/badge/tests-pytest-green?logo=pytest&logoColor=white)](tests/)
 [![CI](https://img.shields.io/badge/CI-GitHub%20Actions-lightgrey?logo=github)](.github/workflows/ci.yml)
 
-End-to-end machine learning project for detecting fraudulent e-commerce transactions. The pipeline covers data cleaning, exploratory analysis, feature engineering, class imbalance handling, tuned classification models, SHAP explainability, executive insights, and an interactive Streamlit dashboard.
+End-to-end machine learning project for **unified fraud detection across e-commerce and banking transaction streams**. The pipeline covers data cleaning, EDA, feature engineering, class imbalance handling, tuned classifiers (LR / RF / XGBoost), SHAP explainability, executive insights, and a Streamlit dashboard.
 
 ---
 
 ## Project Overview
 
-This repository implements a reproducible fraud analytics workflow on real-world transaction data. The primary modeling target is **Fraud_Data** — an e-commerce dataset with user, channel, device, and behavioral attributes. A secondary **creditcard.csv** dataset is preprocessed for future modeling.
+This repository implements a **unified fraud analytics workflow** across two transaction streams:
 
-The project is structured as a modular Python package (`src/`) with CLI scripts, Jupyter notebooks, automated tests, and report-ready artifacts under `reports/`. Design goals include leakage-safe preprocessing, imbalanced-learning best practices, and stakeholder-ready outputs for data scientists, fraud analysts, and executives.
+- **Fraud_Data** — e-commerce checkout fraud (behavioral, channel, device, geolocation features)
+- **creditcard.csv** — banking / card fraud (PCA features + amount/time)
+
+Both streams share the same modeling stack (stratified split → SMOTE on train → tune LR/RF/XGBoost on PR-AUC → holdout evaluation → SHAP). The project is a modular Python package (`src/`) with CLI scripts, notebooks, tests, Streamlit dashboard, and report-ready artifacts under `reports/`.
 
 ---
 
@@ -22,7 +25,7 @@ The project is structured as a modular Python package (`src/`) with CLI scripts,
 
 Online merchants lose revenue and customer trust when fraudulent transactions are approved. Manual review of every order is not scalable; fully automated blocking risks false declines and poor customer experience.
 
-**Objective:** Build a model that reliably prioritizes suspicious transactions for review while keeping false alarms low. Success is measured by precision-recall trade-offs appropriate for a **review-first** deployment — high precision to protect analyst capacity, with recall improvements targeted through threshold tuning and verification workflows.
+**Objective:** Build a **unified risk-scoring framework** that prioritizes suspicious transactions for review across both e-commerce checkout and banking/card streams, keeping false alarms low. Success is measured by precision-recall trade-offs appropriate for a **review-first** deployment — high precision to protect analyst capacity, with stream-specific features and thresholds.
 
 ---
 
@@ -31,7 +34,7 @@ Online merchants lose revenue and customer trust when fraudulent transactions ar
 | Dataset | File | Rows (approx.) | Fraud rate | Role |
 |---------|------|----------------|------------|------|
 | E-commerce fraud | `Fraud_Data.csv` | 151,112 | 9.36% | Primary modeling dataset |
-| Credit card (PCA features) | `creditcard.csv` | 284,807 | 0.17% | Preprocessed; modeling planned |
+| Credit card (PCA features) | `creditcard.csv` | 284,807 (283,726 clean) | 0.17% | Full modeling + SHAP |
 | IP geolocation | `IpAddress_to_Country.csv` | 138,846 | — | Country enrichment lookup |
 
 **Fraud_Data key fields:** `user_id`, signup/purchase timestamps, `purchase_value`, `device_id`, acquisition `source`, `browser`, `sex`, `age`, `ip_address`, and binary `class` (fraud label).
@@ -126,7 +129,7 @@ fraud-detection-analytics/
 
 ## Results
 
-**Best model:** `random_forest_tuned` (selected by PR-AUC)
+### E-commerce (`Fraud_Data`) — best: `random_forest_tuned`
 
 | Metric | Value |
 |--------|-------|
@@ -136,26 +139,34 @@ fraud-detection-analytics/
 | F1 | 0.688 |
 | ROC-AUC | 0.770 |
 
-**Holdout confusion matrix (30,223 transactions):**
+Holdout (30,223): TP 1,492 · FP 13 · FN 1,338 · TN 27,380  
+**Top driver:** `time_since_signup_hours` (~69% importance)
 
-| | Predicted Legitimate | Predicted Fraud |
-|--|---------------------|-----------------|
-| **Actual Legitimate** | 27,380 (TN) | 13 (FP) |
-| **Actual Fraud** | 1,338 (FN) | 1,492 (TP) |
+### Banking (`creditcard.csv`) — best: `random_forest`
 
-**Top feature drivers:** `time_since_signup_hours` (~69% importance), followed by geography, purchase timing, age, and purchase value.
+| Metric | Value |
+|--------|-------|
+| PR-AUC | 0.809 |
+| Precision | 92.3% |
+| Recall | 75.8% |
+| F1 | 0.832 |
+| ROC-AUC | 0.975 |
 
-Full artifacts: `reports/modeling/` or `reports/outputs/` · `reports/shap/` · `reports/fraud_insights.md`
+Holdout (56,746): TP 72 · FP 6 · FN 23 · TN 56,645  
+**Top drivers:** PCA components `V14`, `V17`, `V10`, `V12`, `V16`
+
+Artifacts: `reports/outputs/` · `reports/outputs/creditcard/` · `reports/shap/` · `reports/shap/creditcard/`
 
 ---
 
 ## Key Insights
 
-1. **Signup velocity is the dominant signal** — fraudsters purchase almost immediately after account creation; legitimate customers wait weeks on average.
-2. **High precision supports review-first deployment** — only 13 false positives on holdout; flagged cases are strong manual-review candidates.
-3. **Recall gap remains** — ~47% of fraud is missed at the default threshold; threshold tuning and verification workflows are the highest-impact next steps.
-4. **Geography and channel add context** — country and browser features rank in the top 10 but should inform triage, not blanket blocking.
-5. **Rules + ML combination** — new-account purchase cooldowns address the strongest signal without model inference alone.
+1. **Unified two-stream solution** — the same stack scores e-commerce checkout fraud and banking/card fraud with stream-specific features and thresholds.
+2. **Signup velocity dominates e-commerce** — fraudsters buy almost immediately after signup; legitimate users wait weeks.
+3. **PCA components dominate banking** — `V14`, `V17`, `V10` lead creditcard importance/SHAP; amount alone is weak.
+4. **High precision supports review-first deployment** — 13 false positives (e-commerce) and 6 (creditcard) on holdout.
+5. **Prevalence drives metric choice** — PR-AUC is the selection metric for both streams; accuracy is misleading on creditcard (~0.17% fraud).
+6. **Rules + ML** — new-account cooldowns help e-commerce; card streams rely more on model scores because features are anonymized.
 
 ---
 
@@ -222,11 +233,20 @@ python scripts/run_geolocation_enrichment.py
 python scripts/run_feature_engineering.py
 python scripts/run_imbalance_resampling.py
 
-# Task 2 — modeling & insights
+# Task 2 — unified modeling (both streams)
+python scripts/run_unified_modeling.py
+# or separately:
 python scripts/run_modeling_reports.py
+python scripts/run_creditcard_modeling.py
+
+# Explainability (both streams)
 python scripts/run_shap_analysis.py
+python scripts/run_creditcard_shap.py
 python scripts/run_fraud_insights.py
+
+# Reports
 python scripts/build_final_report_html.py
+python scripts/generate_final_report.py
 
 # Dashboard
 streamlit run dashboard/app.py
@@ -255,12 +275,11 @@ shap_analysis = run_shap_explainability_workflow(workflow=workflow)
 
 ## Future Improvements
 
-- **Threshold tuning** — optimize decision thresholds on the PR curve for business-specific precision/recall targets.
-- **creditcard.csv modeling** — extend the pipeline to the highly imbalanced credit-card dataset.
-- **Resampling comparison** — benchmark SMOTE against class weights, ADASYN, and undersampling.
-- **Velocity features** — re-engineer when repeat-purchase data becomes available.
-- **Model monitoring** — feature drift detection and scheduled retraining after fraud incidents.
-- **Production deployment** — API scoring service and integration with case-management tooling.
+- **Threshold tuning** — optimize decision thresholds on the PR curve per stream for cost-sensitive targets.
+- **Resampling comparison** — benchmark partial SMOTE against class weights, ADASYN, and undersampling (especially creditcard).
+- **Velocity features** — re-engineer when e-commerce repeat-purchase data is available.
+- **Model monitoring** — feature drift (signup timing / top PCA components) and scheduled retraining.
+- **Production deployment** — persist models and expose a dual-stream scoring API.
 
 ---
 

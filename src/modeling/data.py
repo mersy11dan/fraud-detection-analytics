@@ -10,6 +10,7 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 
 from src.config import (
+    CREDITCARD_CLEAN_FILENAME,
     DATA_PROCESSED_DIR,
     DATA_RAW_DIR,
     FRAUD_DATA_FEATURES_FILENAME,
@@ -17,6 +18,7 @@ from src.config import (
     TEST_SIZE,
 )
 from src.features.pipeline import build_fraud_feature_matrix
+from src.preprocessing.datasets import preprocess_creditcard_data
 from src.utils.logging_config import get_logger
 
 TARGET_COLUMN = "class"
@@ -114,6 +116,81 @@ def prepare_fraud_modeling_data(
     )
     log.info(
         "Prepared modeling split: train=%s, test=%s, features=%s",
+        len(split.x_train),
+        len(split.x_test),
+        len(split.feature_names),
+    )
+    return split
+
+
+def load_creditcard_feature_matrix(
+    *,
+    data_dir: Path = DATA_PROCESSED_DIR,
+    raw_data_dir: Path = DATA_RAW_DIR,
+    clean_filename: str = CREDITCARD_CLEAN_FILENAME,
+    target_column: str = TARGET_COLUMN,
+    logger: logging.Logger | None = None,
+) -> tuple[pd.DataFrame, pd.Series]:
+    """
+    Load the processed credit-card feature matrix.
+
+    Uses PCA components (``v1``–``v28``) plus scaled ``time`` and ``amount``.
+    """
+    from sklearn.preprocessing import StandardScaler
+
+    log = logger or get_logger(__name__)
+    clean_path = data_dir / clean_filename
+
+    if clean_path.exists():
+        log.info("Loading processed creditcard data from %s", clean_path)
+        table = pd.read_csv(clean_path)
+    else:
+        log.info("Processed creditcard data not found; preprocessing from raw")
+        table = preprocess_creditcard_data(data_dir=raw_data_dir, logger=log)
+
+    if target_column not in table.columns:
+        raise ValueError(f"Target column '{target_column}' not found in creditcard data")
+
+    features = table.drop(columns=[target_column]).copy()
+    target = table[target_column].astype(int)
+    target.name = target_column
+
+    scale_columns = [col for col in ("time", "amount") if col in features.columns]
+    if scale_columns:
+        scaler = StandardScaler()
+        features[scale_columns] = scaler.fit_transform(features[scale_columns])
+
+    log.info(
+        "Creditcard feature matrix ready: %s rows, %s features",
+        len(features),
+        len(features.columns),
+    )
+    return features, target
+
+
+def prepare_creditcard_modeling_data(
+    *,
+    data_dir: Path = DATA_PROCESSED_DIR,
+    raw_data_dir: Path = DATA_RAW_DIR,
+    test_size: float = TEST_SIZE,
+    random_state: int = RANDOM_STATE,
+    logger: logging.Logger | None = None,
+) -> ModelingSplit:
+    """Load processed creditcard features and return a stratified train/test split."""
+    log = logger or get_logger(__name__)
+    features, target = load_creditcard_feature_matrix(
+        data_dir=data_dir,
+        raw_data_dir=raw_data_dir,
+        logger=log,
+    )
+    split = stratified_train_test_split(
+        features,
+        target,
+        test_size=test_size,
+        random_state=random_state,
+    )
+    log.info(
+        "Prepared creditcard split: train=%s, test=%s, features=%s",
         len(split.x_train),
         len(split.x_test),
         len(split.feature_names),

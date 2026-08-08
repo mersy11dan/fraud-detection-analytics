@@ -23,11 +23,15 @@ MODELING_DIR_CANDIDATES = (
     REPORTS_DIR / "outputs",
     REPORTS_DIR / "modeling",
 )
+CREDITCARD_MODELING_DIR = REPORTS_DIR / "outputs" / "creditcard"
 PLOT_DIR_CANDIDATES = (
     REPORTS_DIR / "outputs" / "plots",
     REPORTS_DIR / "modeling",
     REPORTS_DIR / "figures",
 )
+CREDITCARD_PLOT_DIR = CREDITCARD_MODELING_DIR / "plots"
+CREDITCARD_SHAP_FIGURES = REPORTS_DIR / "figures" / "creditcard"
+CREDITCARD_SHAP_REPORTS = REPORTS_DIR / "shap" / "creditcard"
 
 PAGE_TITLE = "Fraud Detection Analytics"
 PAGE_ICON = "🛡️"
@@ -65,7 +69,10 @@ def _normalize_metrics(df: pd.DataFrame) -> pd.DataFrame:
 
 
 @st.cache_data(show_spinner=False)
-def load_model_metrics() -> pd.DataFrame | None:
+def load_model_metrics(stream: str = "ecommerce") -> pd.DataFrame | None:
+    if stream == "creditcard":
+        df = _read_csv(CREDITCARD_MODELING_DIR / "model_comparison_metrics.csv")
+        return _normalize_metrics(df) if df is not None else None
     modeling_dir = _resolve_modeling_dir()
     if modeling_dir is None:
         return None
@@ -74,11 +81,18 @@ def load_model_metrics() -> pd.DataFrame | None:
 
 
 @st.cache_data(show_spinner=False)
-def load_best_model_summary() -> pd.Series | None:
-    modeling_dir = _resolve_modeling_dir()
-    if modeling_dir is None:
-        return None
-    df = _read_csv(modeling_dir / "best_model_summary.csv")
+def load_best_model_summary(stream: str = "ecommerce") -> pd.Series | None:
+    path = (
+        CREDITCARD_MODELING_DIR / "best_model_summary.csv"
+        if stream == "creditcard"
+        else None
+    )
+    if stream != "creditcard":
+        modeling_dir = _resolve_modeling_dir()
+        if modeling_dir is None:
+            return None
+        path = modeling_dir / "best_model_summary.csv"
+    df = _read_csv(path) if path is not None else None
     if df is None or df.empty:
         return None
     row = df.iloc[0].copy()
@@ -88,7 +102,9 @@ def load_best_model_summary() -> pd.Series | None:
 
 
 @st.cache_data(show_spinner=False)
-def load_feature_importance() -> pd.DataFrame | None:
+def load_feature_importance(stream: str = "ecommerce") -> pd.DataFrame | None:
+    if stream == "creditcard":
+        return _read_csv(CREDITCARD_MODELING_DIR / "top_features_best_model.csv")
     modeling_dir = _resolve_modeling_dir()
     if modeling_dir is None:
         return None
@@ -101,7 +117,9 @@ def load_class_imbalance() -> pd.DataFrame | None:
 
 
 @st.cache_data(show_spinner=False)
-def load_shap_features() -> pd.DataFrame | None:
+def load_shap_features(stream: str = "ecommerce") -> pd.DataFrame | None:
+    if stream == "creditcard":
+        return _read_csv(CREDITCARD_SHAP_REPORTS / "shap_top_features.csv")
     return _read_csv(REPORTS_DIR / "shap" / "shap_top_features.csv")
 
 
@@ -126,7 +144,16 @@ def load_feature_matrix() -> pd.DataFrame:
     return pd.read_csv(path)
 
 
-def find_plot_filenames() -> dict[str, Path]:
+@st.cache_data(show_spinner=False)
+def load_creditcard_clean() -> pd.DataFrame:
+    path = DATA_PROCESSED_DIR / "creditcard_clean.csv"
+    if not path.exists():
+        return pd.DataFrame()
+    # Sample for EDA charts if huge — full file is fine for KPIs via nrows later
+    return pd.read_csv(path)
+
+
+def find_plot_filenames(stream: str = "ecommerce") -> dict[str, Path]:
     names = {
         "pr_curve": "model_comparison_pr_curve.png",
         "roc_curve": "model_comparison_roc_curve.png",
@@ -134,8 +161,13 @@ def find_plot_filenames() -> dict[str, Path]:
         "shap_summary": "shap_summary_plot.png",
         "shap_bar": "shap_bar_plot.png",
     }
+    plot_dirs = (
+        [CREDITCARD_PLOT_DIR, CREDITCARD_MODELING_DIR]
+        if stream == "creditcard"
+        else list(PLOT_DIR_CANDIDATES)
+    )
     found: dict[str, Path] = {}
-    for plot_dir in PLOT_DIR_CANDIDATES:
+    for plot_dir in plot_dirs:
         if not plot_dir.exists():
             continue
         for key, filename in names.items():
@@ -144,7 +176,7 @@ def find_plot_filenames() -> dict[str, Path]:
             candidate = plot_dir / filename
             if candidate.exists():
                 found[key] = candidate
-    shap_dir = REPORTS_DIR / "figures"
+    shap_dir = CREDITCARD_SHAP_FIGURES if stream == "creditcard" else REPORTS_DIR / "figures"
     if shap_dir.exists():
         for path in shap_dir.glob("*.png"):
             stem = path.stem.lower()
@@ -153,6 +185,16 @@ def find_plot_filenames() -> dict[str, Path]:
             elif "bar" in stem and "shap_bar" not in found:
                 found["shap_bar"] = path
     return found
+
+
+def stream_selector(key: str = "stream") -> str:
+    choice = st.radio(
+        "Transaction stream",
+        ["E-commerce (Fraud_Data)", "Banking (creditcard)"],
+        horizontal=True,
+        key=key,
+    )
+    return "creditcard" if choice.startswith("Banking") else "ecommerce"
 
 
 # ---------------------------------------------------------------------------
@@ -250,12 +292,15 @@ def confusion_matrix_heatmap(tp: int, fp: int, fn: int, tn: int) -> go.Figure:
 
 def page_overview() -> None:
     st.title("Overview")
-    st.caption("Executive snapshot of fraud prevalence, model performance, and key risk signals.")
+    st.caption(
+        "Unified fraud analytics across e-commerce (Fraud_Data) and banking (creditcard) streams."
+    )
 
     engineered = load_engineered_data()
-    best = load_best_model_summary()
-    metrics = load_model_metrics()
-    features = load_feature_importance()
+    best_ecom = load_best_model_summary("ecommerce")
+    best_card = load_best_model_summary("creditcard")
+    metrics_ecom = load_model_metrics("ecommerce")
+    metrics_card = load_model_metrics("creditcard")
 
     if engineered.empty:
         missing_data_message("Processed dataset (`data/processed/fraud_data_engineered.csv`)")
@@ -265,64 +310,78 @@ def page_overview() -> None:
     total_txns = len(engineered)
     fraud_count = int(engineered["class"].sum())
 
+    st.subheader("E-commerce stream")
     c1, c2, c3, c4, c5 = st.columns(5)
     with c1:
-        kpi_card("Total Transactions", f"{total_txns:,}")
+        kpi_card("Transactions", f"{total_txns:,}")
     with c2:
-        kpi_card("Fraud Rate", f"{fraud_rate:.2%}", help_text="Share of transactions labeled fraudulent.")
+        kpi_card("Fraud Rate", f"{fraud_rate:.2%}")
     with c3:
         kpi_card("Fraud Cases", f"{fraud_count:,}")
     with c4:
-        if best is not None:
-            kpi_card("Best Model PR-AUC", f"{float(best['pr_auc']):.3f}")
-        else:
-            kpi_card("Best Model PR-AUC", "—")
+        kpi_card(
+            "Best PR-AUC",
+            f"{float(best_ecom['pr_auc']):.3f}" if best_ecom is not None else "—",
+        )
     with c5:
-        if best is not None:
-            kpi_card("Precision", f"{float(best['precision']):.1%}")
+        kpi_card(
+            "Precision",
+            f"{float(best_ecom['precision']):.1%}" if best_ecom is not None else "—",
+        )
+
+    st.subheader("Banking stream (creditcard)")
+    b1, b2, b3, b4, b5 = st.columns(5)
+    with b1:
+        kpi_card("Clean rows", "283,726")
+    with b2:
+        kpi_card("Fraud Rate", "0.17%")
+    with b3:
+        if best_card is not None:
+            kpi_card("Best model", str(best_card["model_name"]))
         else:
-            kpi_card("Precision", "—")
+            kpi_card("Best model", "—")
+    with b4:
+        kpi_card(
+            "Best PR-AUC",
+            f"{float(best_card['pr_auc']):.3f}" if best_card is not None else "—",
+        )
+    with b5:
+        kpi_card(
+            "Precision",
+            f"{float(best_card['precision']):.1%}" if best_card is not None else "—",
+        )
 
     st.divider()
 
     left, right = st.columns(2)
-
     with left:
-        st.subheader("Class distribution")
-        class_df = pd.DataFrame(
-            {
-                "class": ["Legitimate", "Fraud"],
-                "count": [total_txns - fraud_count, fraud_count],
-            }
-        )
-        fig = px.pie(
-            class_df,
-            names="class",
-            values="count",
-            hole=0.45,
-            color="class",
-            color_discrete_map={"Legitimate": "#94a3b8", "Fraud": "#dc2626"},
-        )
-        fig.update_layout(template=plotly_template(), height=360, showlegend=True)
-        st.plotly_chart(fig, use_container_width=True)
-
-    with right:
-        st.subheader("Model comparison")
-        if metrics is not None and not metrics.empty:
-            fig = metric_bar_chart(metrics, "pr_auc", "PR-AUC by model")
-            st.plotly_chart(fig, use_container_width=True)
+        st.subheader("E-commerce — PR-AUC by model")
+        if metrics_ecom is not None and not metrics_ecom.empty:
+            st.plotly_chart(
+                metric_bar_chart(metrics_ecom, "pr_auc", "Fraud_Data models"),
+                use_container_width=True,
+            )
         else:
-            missing_data_message("Model comparison metrics")
+            missing_data_message("E-commerce model metrics")
+    with right:
+        st.subheader("Banking — PR-AUC by model")
+        if metrics_card is not None and not metrics_card.empty:
+            st.plotly_chart(
+                metric_bar_chart(metrics_card, "pr_auc", "creditcard models"),
+                use_container_width=True,
+            )
+        else:
+            missing_data_message("creditcard metrics (`reports/outputs/creditcard/`)")
 
+    features = load_feature_importance("ecommerce")
     if features is not None and not features.empty:
-        st.subheader("Top fraud indicators")
+        st.subheader("E-commerce — top fraud indicators")
         top = features.head(8)
         fig = px.bar(
             top,
             x="importance",
             y="feature",
             orientation="h",
-            title="Best model — top feature importance",
             color="importance",
             color_continuous_scale="Reds",
         )
@@ -331,16 +390,13 @@ def page_overview() -> None:
             height=360,
             yaxis=dict(categoryorder="total ascending"),
             coloraxis_showscale=False,
-            margin=dict(l=20, r=20, t=50, b=20),
         )
         st.plotly_chart(fig, use_container_width=True)
 
-    if best is not None:
-        st.info(
-            f"**{best['model_name']}** is the current best model "
-            f"(recall **{float(best['recall']):.1%}**, F1 **{float(best['f1']):.3f}**). "
-            "See **Model Performance** and **Executive Recommendations** for deployment guidance."
-        )
+    st.info(
+        "Use **Model Performance** and **SHAP Explainability** to switch between "
+        "E-commerce and Banking streams. Full narrative: `docs/final-report.html`."
+    )
 
 
 def page_dataset_summary() -> None:
@@ -560,11 +616,12 @@ def page_fraud_eda() -> None:
 def page_model_performance() -> None:
     st.title("Model Performance")
     st.caption("Holdout evaluation for tuned classifiers (SMOTE on train only).")
+    stream = stream_selector("perf_stream")
 
-    metrics = load_model_metrics()
-    best = load_best_model_summary()
-    features = load_feature_importance()
-    plots = find_plot_filenames()
+    metrics = load_model_metrics(stream)
+    best = load_best_model_summary(stream)
+    features = load_feature_importance(stream)
+    plots = find_plot_filenames(stream)
 
     if metrics is None or metrics.empty:
         missing_data_message("Model comparison metrics")
@@ -667,10 +724,16 @@ def page_model_performance() -> None:
 def page_shap_explainability() -> None:
     st.title("SHAP Explainability")
     st.caption("Model-agnostic explanations for fraud prediction drivers.")
+    stream = stream_selector("shap_stream")
 
-    shap_df = load_shap_features()
-    shap_md = _read_text(REPORTS_DIR / "shap" / "shap_feature_summary.md")
-    plots = find_plot_filenames()
+    shap_df = load_shap_features(stream)
+    shap_md_path = (
+        CREDITCARD_SHAP_REPORTS / "shap_feature_summary.md"
+        if stream == "creditcard"
+        else REPORTS_DIR / "shap" / "shap_feature_summary.md"
+    )
+    shap_md = _read_text(shap_md_path)
+    plots = find_plot_filenames(stream)
 
     if shap_df is None or shap_df.empty:
         missing_data_message("SHAP feature summary (`reports/shap/shap_top_features.csv`)")
@@ -753,18 +816,30 @@ def page_executive_recommendations() -> None:
     st.caption("Actionable fraud prevention, verification, and monitoring guidance.")
 
     insights = load_fraud_insights()
-    best = load_best_model_summary()
+    best_ecom = load_best_model_summary("ecommerce")
+    best_card = load_best_model_summary("creditcard")
 
-    if best is not None:
-        c1, c2, c3, c4 = st.columns(4)
-        with c1:
-            kpi_card("Deployment Model", str(best["model_name"]))
-        with c2:
-            kpi_card("Precision", f"{float(best['precision']):.1%}")
-        with c3:
-            kpi_card("Recall", f"{float(best['recall']):.1%}")
-        with c4:
-            kpi_card("False Positives (holdout)", f"{int(best['false_positives']):,}")
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        kpi_card(
+            "E-com model",
+            str(best_ecom["model_name"]) if best_ecom is not None else "—",
+        )
+    with c2:
+        kpi_card(
+            "E-com precision",
+            f"{float(best_ecom['precision']):.1%}" if best_ecom is not None else "—",
+        )
+    with c3:
+        kpi_card(
+            "Card model",
+            str(best_card["model_name"]) if best_card is not None else "—",
+        )
+    with c4:
+        kpi_card(
+            "Card PR-AUC",
+            f"{float(best_card['pr_auc']):.3f}" if best_card is not None else "—",
+        )
 
     if insights is None:
         missing_data_message("Executive insights (`reports/fraud_insights.md`)")

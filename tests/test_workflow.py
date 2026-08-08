@@ -56,6 +56,7 @@ def test_run_fraud_modeling_workflow_returns_three_models(monkeypatch: pytest.Mo
         "xgboost",
     }
     assert workflow.best_result.model_name in workflow.comparison.iloc[0]["model_name"]
+    assert workflow.dataset_name == "Fraud_Data"
     assert "pr_auc" in workflow.comparison.columns
 
 

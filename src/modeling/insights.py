@@ -194,7 +194,17 @@ def build_fraud_insights_markdown(
             "importance — validate with SHAP and test threshold policies for recall improvement.",
             "- **Velocity features:** Uniform in current data (one transaction per user); exclude or deprioritize "
             "until repeat-purchase data is available.",
-            "- **Next steps:** Threshold tuning on PR curve, SHAP case review, creditcard.csv modeling pass.",
+            "- **Next steps:** Threshold tuning on PR curve, SHAP case review, and stream-specific "
+            "ops playbooks for both Fraud_Data and creditcard.",
+            "",
+            "## Unified solution (both streams)",
+            "",
+            "- **E-commerce (`Fraud_Data`):** best model `random_forest_tuned` — high precision (~99%), "
+            "dominant signal `time_since_signup_hours`.",
+            "- **Banking (`creditcard.csv`):** best model `random_forest` — PR-AUC ~0.81, recall ~76%, "
+            "dominant PCA drivers `V14` / `V17` / `V10` (see `reports/outputs/creditcard/`).",
+            "- **Shared stack:** stratified split → SMOTE on train → tune LR/RF/XGBoost on PR-AUC → "
+            "holdout evaluate → SHAP (`run_unified_modeling.py`).",
             "",
             "## For fraud analysts",
             "",

@@ -1,0 +1,11 @@
+feature,mean_abs_shap,mean_shap,impact_direction
+time_since_signup_hours,0.1181892043602619,-0.09794785881773452,decreases_fraud_risk
+country_United States,0.020701344803537147,-0.010803327753224866,decreases_fraud_risk
+browser_Chrome,0.00910591926637668,-0.005138624960856585,decreases_fraud_risk
+day_of_week,0.008202167853744275,-0.004796194210237048,decreases_fraud_risk
+source_Direct,0.00719519617139894,-0.0037976777965114937,decreases_fraud_risk
+hour_of_day,0.006068851679351673,-0.0031037733540022774,decreases_fraud_risk
+country_Germany,0.004532246709771276,-0.002270009304362045,decreases_fraud_risk
+country_unknown,0.0033948703269522196,-0.0011323210168425668,decreases_fraud_risk
+age,0.002984702908139756,-0.0007307406797955554,decreases_fraud_risk
+purchase_value,0.0029142696464504203,-0.0012484205157051818,decreases_fraud_risk

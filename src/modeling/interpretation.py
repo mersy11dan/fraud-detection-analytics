@@ -142,6 +142,12 @@ def describe_feature(feature_name: str) -> str:
         return f"traffic from {feature_name.removeprefix('source_')} channel"
     if feature_name.startswith("sex_"):
         return f"customer sex = {feature_name.removeprefix('sex_')}"
+    if feature_name.startswith("v") and feature_name[1:].isdigit():
+        return f"PCA component {feature_name.upper()} (anonymized credit-card feature)"
+    if feature_name == "amount":
+        return "transaction amount"
+    if feature_name == "time":
+        return "seconds elapsed since first transaction in dataset"
 
     labels = {
         "purchase_value": "higher purchase amounts",

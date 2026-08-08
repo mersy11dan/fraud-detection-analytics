@@ -1,0 +1,21 @@
+feature,importance,coefficient,direction,importance_type
+time_since_signup_hours,0.6886965832595584,,n/a,feature_importance
+country_United States,0.04603433891981919,,n/a,feature_importance
+day_of_week,0.03767908750431626,,n/a,feature_importance
+hour_of_day,0.02657451754218336,,n/a,feature_importance
+age,0.02195035437786151,,n/a,feature_importance
+purchase_value,0.01894085495928237,,n/a,feature_importance
+country_China,0.014924121519114358,,n/a,feature_importance
+country_unknown,0.014787168733277596,,n/a,feature_importance
+browser_Chrome,0.011587473867019362,,n/a,feature_importance
+country_Germany,0.01154462152737394,,n/a,feature_importance
+source_Direct,0.008375770243690206,,n/a,feature_importance
+browser_IE,0.008279073371071694,,n/a,feature_importance
+source_SEO,0.005819798243179646,,n/a,feature_importance
+country_Korea Republic of,0.005691906273685325,,n/a,feature_importance
+browser_Safari,0.004989040699461006,,n/a,feature_importance
+browser_FireFox,0.0048200554952762065,,n/a,feature_importance
+country_Japan,0.004763513536549063,,n/a,feature_importance
+source_Ads,0.004762465762698099,,n/a,feature_importance
+browser_Opera,0.00412288703877361,,n/a,feature_importance
+country_Canada,0.004110011603980126,,n/a,feature_importance
