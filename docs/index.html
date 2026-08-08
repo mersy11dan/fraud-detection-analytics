@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fraud Detection Analytics — Portfolio</title>
+  <meta name="description" content="Unified ML fraud detection across e-commerce and banking streams — modeling, SHAP explainability, and review-first operations." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Sora:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #0c1210;
+      --ink-soft: #1a2420;
+      --fog: #e8efe9;
+      --mist: #c5d4c9;
+      --sage: #7fa890;
+      --mint: #b8e0c8;
+      --signal: #e8a87c;
+      --danger: #c45c4a;
+      --paper: #f4f7f4;
+      --glass: rgba(244, 247, 244, 0.08);
+      --line: rgba(232, 239, 233, 0.14);
+      --max: 1120px;
+      --ease: cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: "Sora", system-ui, sans-serif;
+      color: var(--fog);
+      background: var(--ink);
+      line-height: 1.65;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      background:
+        radial-gradient(ellipse 80% 50% at 10% -10%, rgba(127, 168, 144, 0.22), transparent 55%),
+        radial-gradient(ellipse 60% 40% at 90% 20%, rgba(232, 168, 124, 0.12), transparent 50%),
+        radial-gradient(ellipse 50% 40% at 50% 100%, rgba(184, 224, 200, 0.08), transparent 55%);
+    }
+
+    a { color: var(--mint); text-decoration: none; }
+    a:hover { color: #fff; }
+
+    .wrap {
+      position: relative;
+      z-index: 1;
+      width: min(100% - 2rem, var(--max));
+      margin-inline: auto;
+    }
+
+    /* Nav */
+    .nav {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      backdrop-filter: blur(14px);
+      background: rgba(12, 18, 16, 0.72);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .nav-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0.9rem 0;
+    }
+
+    .brand {
+      font-family: "Fraunces", Georgia, serif;
+      font-weight: 700;
+      font-size: 1.05rem;
+      letter-spacing: -0.02em;
+      color: var(--paper);
+    }
+
+    .brand span { color: var(--sage); }
+
+    .nav-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem 1.1rem;
+      font-size: 0.82rem;
+      font-weight: 500;
+    }
+
+    .nav-links a { color: var(--mist); }
+    .nav-links a:hover { color: var(--paper); }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.72rem 1.15rem;
+      border-radius: 999px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      border: 1px solid transparent;
+      transition: transform 0.35s var(--ease), background 0.25s, border-color 0.25s, color 0.25s;
+    }
+
+    .btn:hover { transform: translateY(-2px); }
+
+    .btn-primary {
+      background: var(--mint);
+      color: var(--ink);
+    }
+
+    .btn-primary:hover {
+      background: #fff;
+      color: var(--ink);
+    }
+
+    .btn-ghost {
+      background: transparent;
+      border-color: var(--line);
+      color: var(--fog);
+    }
+
+    .btn-ghost:hover {
+      border-color: var(--sage);
+      color: var(--paper);
+    }
+
+    /* Hero */
+    .hero {
+      padding: 4.5rem 0 3.5rem;
+      min-height: min(92vh, 820px);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .hero-kicker {
+      display: inline-block;
+      font-size: 0.75rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--sage);
+      margin-bottom: 1.25rem;
+      opacity: 0;
+      animation: rise 0.9s var(--ease) 0.1s forwards;
+    }
+
+    .hero h1 {
+      font-family: "Fraunces", Georgia, serif;
+      font-size: clamp(2.6rem, 7vw, 4.6rem);
+      font-weight: 700;
+      line-height: 1.05;
+      letter-spacing: -0.035em;
+      color: var(--paper);
+      max-width: 14ch;
+      opacity: 0;
+      animation: rise 1s var(--ease) 0.2s forwards;
+    }
+
+    .hero h1 em {
+      font-style: italic;
+      color: var(--mint);
+    }
+
+    .hero-lead {
+      margin-top: 1.4rem;
+      max-width: 38rem;
+      font-size: 1.08rem;
+      color: var(--mist);
+      opacity: 0;
+      animation: rise 1s var(--ease) 0.35s forwards;
+    }
+
+    .hero-cta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-top: 2rem;
+      opacity: 0;
+      animation: rise 1s var(--ease) 0.5s forwards;
+    }
+
+    .hero-mesh {
+      position: absolute;
+      right: -8%;
+      top: 18%;
+      width: min(48vw, 520px);
+      height: min(48vw, 520px);
+      border-radius: 50%;
+      background:
+        conic-gradient(from 210deg, rgba(127, 168, 144, 0.35), transparent 40%, rgba(232, 168, 124, 0.25), transparent 70%, rgba(184, 224, 200, 0.3));
+      filter: blur(40px);
+      opacity: 0.55;
+      animation: drift 14s ease-in-out infinite alternate;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(22px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes drift {
+      from { transform: translate(0, 0) scale(1); }
+      to { transform: translate(-30px, 40px) scale(1.08); }
+    }
+
+    /* Sections */
+    section {
+      padding: 4.5rem 0;
+      border-top: 1px solid var(--line);
+    }
+
+    .section-label {
+      font-size: 0.72rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--sage);
+      margin-bottom: 0.75rem;
+    }
+
+    h2 {
+      font-family: "Fraunces", Georgia, serif;
+      font-size: clamp(1.85rem, 4vw, 2.6rem);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      color: var(--paper);
+      margin-bottom: 0.85rem;
+      max-width: 18ch;
+    }
+
+    .section-copy {
+      max-width: 40rem;
+      color: var(--mist);
+      margin-bottom: 2rem;
+    }
+
+    /* KPI strip */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+    }
+
+    @media (min-width: 720px) {
+      .kpi-grid { grid-template-columns: repeat(4, 1fr); }
+    }
+
+    .kpi {
+      padding: 1.25rem 1.1rem;
+      border: 1px solid var(--line);
+      border-radius: 1rem;
+      background: linear-gradient(160deg, rgba(255,255,255,0.04), transparent 60%);
+      transition: border-color 0.3s, transform 0.35s var(--ease);
+    }
+
+    .kpi:hover {
+      border-color: rgba(184, 224, 200, 0.35);
+      transform: translateY(-3px);
+    }
+
+    .kpi-value {
+      font-family: "Fraunces", Georgia, serif;
+      font-size: 1.85rem;
+      font-weight: 700;
+      color: var(--paper);
+      letter-spacing: -0.03em;
+    }
+
+    .kpi-label {
+      margin-top: 0.25rem;
+      font-size: 0.78rem;
+      color: var(--sage);
+    }
+
+    /* Streams */
+    .stream-grid {
+      display: grid;
+      gap: 1.25rem;
+    }
+
+    @media (min-width: 800px) {
+      .stream-grid { grid-template-columns: 1fr 1fr; }
+    }
+
+    .stream {
+      padding: 1.6rem;
+      border-radius: 1.25rem;
+      border: 1px solid var(--line);
+      background: var(--ink-soft);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .stream::after {
+      content: "";
+      position: absolute;
+      inset: auto -20% -40% auto;
+      width: 180px;
+      height: 180px;
+      border-radius: 50%;
+      filter: blur(50px);
+      opacity: 0.35;
+    }
+
+    .stream-ecom::after { background: var(--sage); }
+    .stream-card::after { background: var(--signal); }
+
+    .stream h3 {
+      font-family: "Fraunces", Georgia, serif;
+      font-size: 1.45rem;
+      margin-bottom: 0.35rem;
+      color: var(--paper);
+    }
+
+    .stream-meta {
+      font-size: 0.8rem;
+      color: var(--sage);
+      margin-bottom: 1.1rem;
+    }
+
+    .metric-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+    }
+
+    .metric-table th,
+    .metric-table td {
+      text-align: left;
+      padding: 0.45rem 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .metric-table th { color: var(--sage); font-weight: 500; }
+    .metric-table td { color: var(--fog); font-variant-numeric: tabular-nums; }
+    .metric-table tr:last-child th,
+    .metric-table tr:last-child td { border-bottom: none; }
+
+    /* Pipeline */
+    .pipeline {
+      display: grid;
+      gap: 0.65rem;
+    }
+
+    @media (min-width: 900px) {
+      .pipeline {
+        grid-template-columns: repeat(6, 1fr);
+        gap: 0.5rem;
+      }
+    }
+
+    .step {
+      padding: 1rem 0.85rem;
+      border-radius: 0.9rem;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.03);
+      min-height: 7.5rem;
+    }
+
+    .step-num {
+      font-size: 0.7rem;
+      letter-spacing: 0.12em;
+      color: var(--signal);
+      margin-bottom: 0.45rem;
+    }
+
+    .step strong {
+      display: block;
+      font-size: 0.92rem;
+      color: var(--paper);
+      margin-bottom: 0.35rem;
+    }
+
+    .step p {
+      font-size: 0.78rem;
+      color: var(--mist);
+      line-height: 1.45;
+    }
+
+    /* Gallery */
+    .gallery {
+      display: grid;
+      gap: 1rem;
+    }
+
+    @media (min-width: 700px) {
+      .gallery { grid-template-columns: 1fr 1fr; }
+    }
+
+    figure {
+      margin: 0;
+      border-radius: 1rem;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      background: #101816;
+    }
+
+    figure img {
+      display: block;
+      width: 100%;
+      height: auto;
+      vertical-align: middle;
+    }
+
+    figcaption {
+      padding: 0.75rem 1rem;
+      font-size: 0.78rem;
+      color: var(--mist);
+      border-top: 1px solid var(--line);
+    }
+
+    /* Insights */
+    .insight-list {
+      list-style: none;
+      display: grid;
+      gap: 0.85rem;
+    }
+
+    .insight-list li {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 0.85rem;
+      padding: 1rem 1.1rem;
+      border-radius: 0.9rem;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.03);
+    }
+
+    .insight-list .n {
+      font-family: "Fraunces", Georgia, serif;
+      font-size: 1.2rem;
+      color: var(--signal);
+      line-height: 1;
+    }
+
+    /* Stack */
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .chip {
+      padding: 0.45rem 0.85rem;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      font-size: 0.8rem;
+      color: var(--fog);
+      background: rgba(255,255,255,0.03);
+    }
+
+    /* CTA band */
+    .cta-band {
+      margin: 2rem 0 4rem;
+      padding: 2.5rem 1.75rem;
+      border-radius: 1.5rem;
+      border: 1px solid rgba(184, 224, 200, 0.25);
+      background:
+        linear-gradient(135deg, rgba(127, 168, 144, 0.18), rgba(12, 18, 16, 0.4) 45%, rgba(232, 168, 124, 0.12));
+      text-align: center;
+    }
+
+    .cta-band h2 {
+      margin-inline: auto;
+      max-width: 16ch;
+    }
+
+    .cta-band p {
+      max-width: 34rem;
+      margin: 0.75rem auto 1.5rem;
+      color: var(--mist);
+    }
+
+    .cta-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 0.75rem;
+    }
+
+    footer {
+      padding: 2rem 0 3rem;
+      border-top: 1px solid var(--line);
+      font-size: 0.82rem;
+      color: var(--sage);
+    }
+
+    footer .wrap {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem 1.5rem;
+      justify-content: space-between;
+    }
+
+    .reveal {
+      opacity: 0;
+      transform: translateY(28px);
+      transition: opacity 0.8s var(--ease), transform 0.8s var(--ease);
+    }
+
+    .reveal.in {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    @media (max-width: 640px) {
+      .nav-links { display: none; }
+      .hero { min-height: auto; padding-top: 3rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="hero-mesh" aria-hidden="true"></div>
+
+  <header class="nav">
+    <div class="wrap nav-inner">
+      <a class="brand" href="#top">Fraud<span>.</span>Analytics</a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="#problem">Problem</a>
+        <a href="#results">Results</a>
+        <a href="#method">Method</a>
+        <a href="#explain">Explainability</a>
+        <a href="#stack">Stack</a>
+      </nav>
+      <a class="btn btn-ghost" href="https://github.com/mersy11dan/fraud-detection-analytics" target="_blank" rel="noopener">GitHub</a>
+    </div>
+  </header>
+
+  <main id="top">
+    <section class="hero wrap" style="border: none; position: relative;">
+      <p class="hero-kicker">Portfolio case study · ML · Fraud risk</p>
+      <h1>Fraud Detection <em>Analytics</em></h1>
+      <p class="hero-lead">
+        A unified machine-learning system that scores fraudulent transactions across
+        <strong>e-commerce checkout</strong> and <strong>banking / card</strong> streams —
+        with SHAP explainability and a review-first operating model.
+      </p>
+      <div class="hero-cta">
+        <a class="btn btn-primary" href="final-report.html">Read full report</a>
+        <a class="btn btn-ghost" href="https://github.com/mersy11dan/fraud-detection-analytics" target="_blank" rel="noopener">View source</a>
+      </div>
+    </section>
+
+    <section id="problem">
+      <div class="wrap reveal">
+        <p class="section-label">Business problem</p>
+        <h2>Catch fraud without drowning analysts</h2>
+        <p class="section-copy">
+          Merchants and issuers lose money to chargebacks and abuse, but auto-blocking
+          creates false declines. This project builds a single risk-scoring framework
+          for two very different data worlds — behavioral e-commerce logs (~9.4% fraud)
+          and anonymized card PCA features (~0.17% fraud).
+        </p>
+        <div class="kpi-grid">
+          <div class="kpi">
+            <div class="kpi-value">2</div>
+            <div class="kpi-label">Transaction streams</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-value">434k+</div>
+            <div class="kpi-label">Transactions analyzed</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-value">99.1%</div>
+            <div class="kpi-label">E-com precision</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-value">0.809</div>
+            <div class="kpi-label">Card PR-AUC</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="results">
+      <div class="wrap reveal">
+        <p class="section-label">Holdout results</p>
+        <h2>Two streams, one playbook</h2>
+        <p class="section-copy">
+          Same stack on both datasets: stratified split → SMOTE on train only →
+          tune LR / Random Forest / XGBoost on PR-AUC → evaluate on untouched holdout.
+        </p>
+        <div class="stream-grid">
+          <article class="stream stream-ecom">
+            <h3>E-commerce</h3>
+            <p class="stream-meta">Fraud_Data · 151,112 txns · 9.36% fraud · best: random_forest_tuned</p>
+            <table class="metric-table">
+              <tr><th>PR-AUC</th><td>0.625</td></tr>
+              <tr><th>Precision</th><td>99.1%</td></tr>
+              <tr><th>Recall</th><td>52.7%</td></tr>
+              <tr><th>False positives</th><td>13 / 30,223</td></tr>
+              <tr><th>Top driver</th><td>time_since_signup_hours</td></tr>
+            </table>
+          </article>
+          <article class="stream stream-card">
+            <h3>Banking / card</h3>
+            <p class="stream-meta">creditcard.csv · 283,726 clean · 0.17% fraud · best: random_forest</p>
+            <table class="metric-table">
+              <tr><th>PR-AUC</th><td>0.809</td></tr>
+              <tr><th>Precision</th><td>92.3%</td></tr>
+              <tr><th>Recall</th><td>75.8%</td></tr>
+              <tr><th>False positives</th><td>6 / 56,746</td></tr>
+              <tr><th>Top drivers</th><td>V14 · V17 · V10</td></tr>
+            </table>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="method">
+      <div class="wrap reveal">
+        <p class="section-label">Methodology</p>
+        <h2>End-to-end, reproducible</h2>
+        <p class="section-copy">
+          Modular Python package, CLI scripts, 70+ tests, Streamlit dashboard,
+          and stakeholder reports — built for auditability, not just a notebook demo.
+        </p>
+        <div class="pipeline">
+          <div class="step">
+            <div class="step-num">01</div>
+            <strong>Clean</strong>
+            <p>Schema, duplicates, timestamps, geolocation enrichment</p>
+          </div>
+          <div class="step">
+            <div class="step-num">02</div>
+            <strong>Engineer</strong>
+            <p>Temporal, velocity, one-hot encoding, PCA-ready card features</p>
+          </div>
+          <div class="step">
+            <div class="step-num">03</div>
+            <strong>Balance</strong>
+            <p>SMOTE on train only; holdout keeps natural prevalence</p>
+          </div>
+          <div class="step">
+            <div class="step-num">04</div>
+            <strong>Model</strong>
+            <p>Grid / random search on PR-AUC for LR, RF, XGBoost</p>
+          </div>
+          <div class="step">
+            <div class="step-num">05</div>
+            <strong>Explain</strong>
+            <p>Feature importance + SHAP summary, bar, waterfall, dependence</p>
+          </div>
+          <div class="step">
+            <div class="step-num">06</div>
+            <strong>Operate</strong>
+            <p>Review-first alerts, cooldowns, monitoring recommendations</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="explain">
+      <div class="wrap reveal">
+        <p class="section-label">Evidence</p>
+        <h2>Signals you can see</h2>
+        <p class="section-copy">
+          E-commerce fraud clusters on near-instant signup-to-purchase.
+          Card fraud separates on anonymized PCA components — SHAP ranks which ones move the score.
+        </p>
+        <div class="gallery">
+          <figure>
+            <img src="assets/portfolio/time_since_signup_by_class.png" alt="Signup-to-purchase time by class" loading="lazy" />
+            <figcaption>E-commerce: signup-to-purchase time by class — fraud near zero hours.</figcaption>
+          </figure>
+          <figure>
+            <img src="assets/portfolio/ecom_shap.png" alt="E-commerce SHAP summary" loading="lazy" />
+            <figcaption>E-commerce SHAP summary — time_since_signup_hours dominates.</figcaption>
+          </figure>
+          <figure>
+            <img src="assets/portfolio/card_importance.png" alt="Creditcard feature importance" loading="lazy" />
+            <figcaption>Banking: top feature importance (PCA components).</figcaption>
+          </figure>
+          <figure>
+            <img src="assets/portfolio/card_shap.png" alt="Creditcard SHAP summary" loading="lazy" />
+            <figcaption>Banking SHAP beeswarm — V14 / V12 / V4 among top drivers.</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <section id="insights">
+      <div class="wrap reveal">
+        <p class="section-label">Key insights</p>
+        <h2>What we’d tell a risk team</h2>
+        <ul class="insight-list">
+          <li>
+            <span class="n">01</span>
+            <span><strong>Review-first, not auto-block.</strong> High precision on both streams keeps analyst noise low (13 and 6 false positives on holdout).</span>
+          </li>
+          <li>
+            <span class="n">02</span>
+            <span><strong>New-account cooldowns</strong> address the strongest e-commerce signal without waiting on model inference alone.</span>
+          </li>
+          <li>
+            <span class="n">03</span>
+            <span><strong>PR-AUC beats accuracy</strong> — especially on creditcard where ~99.8% of rows are legitimate.</span>
+          </li>
+          <li>
+            <span class="n">04</span>
+            <span><strong>Geography is triage, not denial.</strong> Country and channel inform queues; they should not drive blanket blocks.</span>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="stack">
+      <div class="wrap reveal">
+        <p class="section-label">Tech stack</p>
+        <h2>Built to ship</h2>
+        <p class="section-copy">Python package under <code>src/</code>, Streamlit dashboard, pytest suite, and GitHub Actions CI.</p>
+        <div class="chips">
+          <span class="chip">Python</span>
+          <span class="chip">pandas</span>
+          <span class="chip">scikit-learn</span>
+          <span class="chip">XGBoost</span>
+          <span class="chip">imbalanced-learn</span>
+          <span class="chip">SHAP</span>
+          <span class="chip">Streamlit</span>
+          <span class="chip">Plotly</span>
+          <span class="chip">pytest</span>
+          <span class="chip">GitHub Actions</span>
+        </div>
+      </div>
+    </section>
+
+    <div class="wrap">
+      <div class="cta-band reveal">
+        <h2>Explore the full case study</h2>
+        <p>
+          Medium-style final report with methodology, confusion matrices, SHAP plots,
+          limitations, and recommendations — ready for PDF export.
+        </p>
+        <div class="cta-actions">
+          <a class="btn btn-primary" href="final-report.html">Open final report</a>
+          <a class="btn btn-ghost" href="https://github.com/mersy11dan/fraud-detection-analytics" target="_blank" rel="noopener">Star on GitHub</a>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <span>Fraud Detection Analytics · Portfolio case study</span>
+      <span>
+        <a href="https://github.com/mersy11dan/fraud-detection-analytics">mersy11dan/fraud-detection-analytics</a>
+      </span>
+    </div>
+  </footer>
+
+  <script>
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("in");
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.12, rootMargin: "0px 0px -8% 0px" }
+    );
+    document.querySelectorAll(".reveal").forEach((el) => observer.observe(el));
+  </script>
+</body>
+</html>

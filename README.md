@@ -184,10 +184,40 @@ The dashboard loads artifacts from `reports/` and processed data from `data/proc
 
 ---
 
+## Portfolio website
+
+A static portfolio case study lives at [`docs/index.html`](docs/index.html).
+
+**Live (after enabling GitHub Pages):**  
+`https://mersy11dan.github.io/fraud-detection-analytics/`
+
+**Local preview:** open `docs/index.html` in a browser, or:
+
+```bash
+python -m http.server 8080 --directory docs
+```
+
+Then visit `http://localhost:8080`.
+
+### Deploy on GitHub Pages
+
+1. Push this repo (branch `task-2` or `main`).
+2. GitHub → **Settings** → **Pages**.
+3. Under **Build and deployment**:
+   - Source: **GitHub Actions** (recommended — uses `.github/workflows/pages.yml`), **or**
+   - Source: **Deploy from a branch** → Branch `task-2` (or `main`) → Folder **`/docs`** → Save.
+4. Wait 1–2 minutes, then open:  
+   `https://mersy11dan.github.io/fraud-detection-analytics/`
+5. The full report is at:  
+   `https://mersy11dan.github.io/fraud-detection-analytics/final-report.html`
+
+---
+
 ## Documentation
 
 | Document | Path |
 |----------|------|
+| Portfolio site | [`docs/index.html`](docs/index.html) |
 | Final report (Markdown) | [`docs/final-report.md`](docs/final-report.md) |
 | Final report (PDF export) | [`docs/final-report.html`](docs/final-report.html) |
 | Interim report | [`docs/week-5-6-interim-report.md`](docs/week-5-6-interim-report.md) |
